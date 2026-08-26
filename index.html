@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Expedientes - Oficina GEDE</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h2 { color: #333; text-align: center; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        button { background-color: #007bff; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 4px; width: 100%; font-size: 16px; font-weight: bold; }
+        button:hover { background-color: #0056b3; }
+        #mensaje { margin-top: 15px; font-weight: bold; text-align: center; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📂 Registro de Expedientes</h2>
+    <form id="expedienteForm">
+        <div class="form-group">
+            <label for="nroExp">Número de Expediente:</label>
+            <input type="text" id="nroExp" required placeholder="Ej: 288244">
+        </div>
+        <div class="form-group">
+            <label for="localidad">Localidad:</label>
+            <input type="text" id="localidad" required placeholder="Ej: Salta">
+        </div>
+        <div class="form-group">
+            <label for="agente">Agente Receptor:</label>
+            <select id="agente">
+                <option value="Ceci">Ceci</option>
+                <option value="Sofi">Sofi</option>
+                <option value="Lore">Lore</option>
+                <option value="Marce">Marce</option>
+                <option value="Pao">Pao</option>
+                <option value="Diego">Diego</option>
+                <option value="Carlos">Carlos</option>
+                <option value="Javi">Javi</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="caratula">Carátula:</label>
+            <textarea id="caratula" rows="3" placeholder="Descripción del expediente..."></textarea>
+        </div>
+        <button type="submit">💾 Guardar Expediente</button>
+    </form>
+    <p id="mensaje"></p>
+</div>
+
+<script>
+    // PEGA TU LINK DE GOOGLE APPS SCRIPT ENTRE LAS COMILLAS DE ABAJO:
+    const URL_API = "https://script.google.com/macros/s/AKfycbxIQ2pP83EsJlVDm2Adbp5sLg_fJjW8dxxb3iNpJQsN1Xh1ZGiCOyV1xoGN8XnQKgrxkw/exec"; 
+
+    document.getElementById('expedienteForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const nro = document.getElementById('nroExp').value;
+        const loc = document.getElementById('localidad').value;
+        const agente = document.getElementById('agente').value;
+        const caratula = document.getElementById('caratula').value;
+        const fechaHoy = new Date().toLocaleDateString('es-AR');
+
+        const datos = {
+            hoja: "movimientos",
+            action: "append",
+            valores: ["", nro, "General", loc, agente, caratula, fechaHoy, fechaHoy, "Web HTML", "sin recibir", "", ""]
+        };
+
+        document.getElementById('mensaje.style.color = "#333"';
+        document.getElementById('mensaje').innerText = "Guardando en la nube...";
+
+        fetch(URL_API, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(datos)
+        }).then(() => {
+            document.getElementById('mensaje').style.color = "green";
+            document.getElementById('mensaje').innerText = "¡Expediente guardado con éxito!";
+            document.getElementById('expedienteForm').reset();
+        }).catch(error => {
+            document.getElementById('mensaje').style.color = "red";
+            document.getElementById('mensaje').innerText = "Hubo un error al guardar.";
+            console.error(error);
+        });
+    });
+</script>
+
+</body>
+</html>
