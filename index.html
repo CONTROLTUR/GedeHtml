@@ -6,6 +6,8 @@
     <title>Gestión de Expedientes - GEDE</title>
     <!-- Librería OCR Tesseract.js -->
     <script src="https://unpkg.com/tesseract.js@v5.1.0/dist/tesseract.min.js"></script>
+    <!-- Librería ZXing para lectura ultrarrápida de códigos de barras y QR -->
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
         .container { max-width: 650px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
@@ -76,12 +78,12 @@
     <div id="seccionEmisor" class="oculto">
         <h2>📤 Panel de Agente Emisor</h2>
         
-        <!-- Número de Expediente -->
+        <!-- Módulo 1: Código de Barras (Ultrarrápido con ZXing) -->
         <div class="form-group">
-            <label>Número de Expediente:</label>
+            <label>Número de Expediente (Código de Barras):</label>
             <input type="text" id="nroExp" placeholder="Ej: 0060016-193687/2025-1">
-            <label for="camaraBarra" class="btn-secundario">📷 Sacar Foto al Nro de Expediente</label>
-            <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="procesarFotoExpediente(this)">
+            <label for="camaraBarra" class="btn-secundario">📷 Escanear Código de Barras (Izquierda Inferior)</label>
+            <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="escanearCodigoBarras(this)">
         </div>
 
         <div class="form-group">
@@ -104,12 +106,12 @@
             </select>
         </div>
 
-        <!-- Carátula con OCR optimizado -->
+        <!-- Módulo 2: Carátula OCR independiente -->
         <div class="form-group">
             <label>Carátula (Extracto entre líneas):</label>
             <textarea id="caratula" rows="6" placeholder="Texto extraído de la carátula..."></textarea>
-            <label for="camaraOcr" class="btn-camara">📷 Sacar Foto a la Carátula (OCR)</label>
-            <input type="file" id="camaraOcr" accept="image/*" capture="environment" style="display:none;" onchange="procesarFotoOcr(this)">
+            <label for="camaraOcr" class="btn-camara">📷 Extraer Carátula (OCR)</label>
+            <input type="file" id="camaraOcr" accept="image/*" capture="environment" style="display:none;" onchange="procesarOcrCaratula(this)">
         </div>
 
         <div class="form-group">
@@ -140,55 +142,44 @@
         document.getElementById("fechaEntregaExp").value = hoy;
     }
 
-    // Lectura rápida y directa del número de expediente por OCR enfocado
-    async function procesarFotoExpediente(input) {
+    // 1. MÓDULO DE LECTURA DE CÓDIGO DE BARRAS (Ultrarrápido y liviano)
+    async function escanearCodigoBarras(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
             let msgEmisor = document.getElementById("mensajeEmisor");
             msgEmisor.style.color = "#007bff";
-            msgEmisor.innerText = "⏳ Leyendo número de expediente...";
+            msgEmisor.innerText = "⏳ Leyendo código de barras...";
 
-            try {
-                let worker = await Tesseract.createWorker('eng');
-                let resultado = await worker.recognize(archivo);
-                await worker.terminate();
-
-                let texto = resultado.data.text;
-                
-                // Buscamos directamente el patrón exacto GEDE (ej: 0060016-193687/2025-1)
-                let regexPatron = /\d{7}-\d{6}\/\d{4}-\d/;
-                let coincidencia = texto.match(regexPatron);
-
-                if (coincidencia) {
-                    document.getElementById("nroExp").value = coincidencia[0];
-                    msgEmisor.style.color = "green";
-                    msgEmisor.innerText = "✅ ¡Número de expediente detectado!";
-                } else {
-                    // Plan alternativo: buscar cualquier secuencia numérica larga con guiones y barras
-                    let numerosSueltos = texto.match(/[\d\-\/]{10,}/);
-                    if (numerosSueltos) {
-                        document.getElementById("nroExp").value = numerosSueltos[0].trim();
-                        msgEmisor.style.color = "orange";
-                        msgEmisor.innerText = "⚠️ Verificá el número detectado.";
-                    } else {
-                        msgEmisor.style.color = "red";
-                        msgEmisor.innerText = "❌ No se reconoció. Ingresalo manualmente.";
-                    }
-                }
-            } catch (error) {
-                msgEmisor.style.color = "red";
-                msgEmisor.innerText = "❌ Error al leer la imagen.";
-            }
+            let reader = new FileReader();
+            reader.onload = function (e) {
+                let imgElement = new Image();
+                imgElement.onload = function () {
+                    const codeReader = new ZXing.BrowserBarcodeReader();
+                    codeReader.decodeFromImage(imgElement)
+                        .then(result => {
+                            document.getElementById("nroExp").value = result.text;
+                            msgEmisor.style.color = "green";
+                            msgEmisor.innerText = "✅ ¡Código de barras leído con éxito!";
+                        })
+                        .catch(err => {
+                            msgEmisor.style.color = "orange";
+                            msgEmisor.innerText = "⚠️ No se detectó barra limpia. Ingresalo manualmente si es necesario.";
+                            console.error(err);
+                        });
+                };
+                imgElement.src = e.target.result;
+            };
+            reader.readAsDataURL(archivo);
         }
     }
 
-    // OCR optimizado y rápido para la Carátula
-    async function procesarFotoOcr(input) {
+    // 2. MÓDULO OCR INDEPENDIENTE PARA LA CARÁTULA
+    async function procesarOcrCaratula(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
             let msgEmisor = document.getElementById("mensajeEmisor");
             msgEmisor.style.color = "#007bff";
-            msgEmisor.innerText = "⏳ Extrayendo carátula...";
+            msgEmisor.innerText = "⏳ Extrayendo carátula (OCR)...";
 
             try {
                 let worker = await Tesseract.createWorker('spa');
@@ -238,11 +229,12 @@
                 }
 
                 msgEmisor.style.color = "green";
-                msgEmisor.innerText = "✅ ¡Carátula leída con éxito!";
+                msgEmisor.innerText = "✅ ¡Carátula extraída correctamente!";
 
             } catch (error) {
                 msgEmisor.style.color = "red";
-                msgEmisor.innerText = "❌ Error al procesar el OCR.";
+                msgEmisor.innerText = "❌ Error al procesar el OCR de la carátula.";
+                console.error(error);
             }
         }
     }
