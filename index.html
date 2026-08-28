@@ -6,7 +6,7 @@
     <title>Gestión de Expedientes - GEDE</title>
     <!-- Librería OCR Tesseract.js -->
     <script src="https://unpkg.com/tesseract.js@v5.1.0/dist/tesseract.min.js"></script>
-    <!-- Librería QuaggaJS para lectura real de códigos de barra -->
+    <!-- Librería QuaggaJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
@@ -18,11 +18,8 @@
         button, .btn-camara { background-color: #007bff; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 4px; width: 100%; font-size: 16px; font-weight: bold; margin-top: 5px; text-align: center; display: block; text-decoration: none; box-sizing: border-box; }
         button:hover, .btn-camara:hover { background-color: #0056b3; }
         .btn-danger { background-color: #dc3545; }
-        .btn-danger:hover { background-color: #a71d2a; }
         .btn-success { background-color: #28a745; }
-        .btn-success:hover { background-color: #1e7e34; }
         .btn-secundario { background-color: #17a2b8; }
-        .btn-secundario:hover { background-color: #117a8b; }
         .card { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
         .alerta { background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; }
         .oculto { display: none; }
@@ -31,7 +28,7 @@
 <body>
 
 <div class="container">
-    <!-- VISTA 1: LOGIN / REGISTRO -->
+    <!-- VISTA 1: LOGIN -->
     <div id="seccionLogin">
         <h2>🔐 Control de Acceso - Oficina GEDE</h2>
         <div class="form-group">
@@ -69,7 +66,7 @@
         <button onclick="cerrarSesion()" class="btn-danger" style="margin-top: 30px;">🔒 Cerrar Sesión</button>
     </div>
 
-    <!-- VISTA 3: PANEL RECEPTOR -->
+    <!-- VISTA 3: RECEPTOR -->
     <div id="seccionReceptor" class="oculto">
         <h2>📥 Panel de Agente Receptor</h2>
         <p>Expedientes asignados a: <b id="nombreReceptorVisual"></b></p>
@@ -77,15 +74,15 @@
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
     </div>
 
-    <!-- VISTA 4: PANEL EMISOR -->
+    <!-- VISTA 4: EMISOR -->
     <div id="seccionEmisor" class="oculto">
         <h2>📤 Panel de Agente Emisor</h2>
         
-        <!-- Número de Expediente (Lectura real del código de barras inferior izquierdo) -->
+        <!-- Número de Expediente (Código de barras o texto inferior) -->
         <div class="form-group">
-            <label>Número de Expediente (Código de Barras izq. inferior):</label>
+            <label>Número de Expediente:</label>
             <input type="text" id="nroExp" placeholder="Ej: 0060016-193687/2025-1">
-            <label for="camaraBarra" class="btn-secundario">📷 Sacar Foto al Código de Barras</label>
+            <label for="camaraBarra" class="btn-secundario">📷 Sacar Foto al Código / Nro de Expediente</label>
             <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="procesarFotoBarra(this)">
         </div>
 
@@ -109,7 +106,7 @@
             </select>
         </div>
 
-        <!-- Carátula ampliada (Texto delimitado entre líneas) -->
+        <!-- Carátula con OCR estricto en Español -->
         <div class="form-group">
             <label>Carátula (Extracto entre líneas):</label>
             <textarea id="caratula" rows="6" placeholder="Texto extraído de la carátula..."></textarea>
@@ -117,15 +114,13 @@
             <input type="file" id="camaraOcr" accept="image/*" capture="environment" style="display:none;" onchange="procesarFotoOcr(this)">
         </div>
 
-        <!-- Fecha de Creación -->
         <div class="form-group">
-            <label>📅 Fecha de Creación (Extraída del documento):</label>
+            <label>📅 Fecha de Creación:</label>
             <input type="date" id="fechaCreacionExp">
         </div>
 
-        <!-- Fecha de Entrega -->
         <div class="form-group">
-            <label>🚚 Fecha de Entrega / Asignación:</label>
+            <label>🚚 Fecha de Entrega:</label>
             <input type="date" id="fechaEntregaExp">
         </div>
 
@@ -137,7 +132,6 @@
 
 <script>
     const URL_API = "https://script.google.com/macros/s/AKfycbzI_2jGhlx--U9qdxqnfsmfGbAvJmI1mU5n5roSqH6O4LAKlDRn2jyVIKPTaJ9OEVcs/exec";
-
     let usuarioActual = "";
     let emisorActualGlobal = "";
 
@@ -147,74 +141,79 @@
         document.getElementById("fechaEntregaExp").value = hoy;
     }
 
-    // Procesar foto de código de barras usando QuaggaJS sobre imagen estática
+    // Procesar foto de código de barras / número de expediente inferior
     function procesarFotoBarra(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
             let lectorUrl = URL.createObjectURL(archivo);
             let msgEmisor = document.getElementById("mensajeEmisor");
             msgEmisor.style.color = "#007bff";
-            msgEmisor.innerText = "⏳ Leyendo código de barras...";
+            msgEmisor.innerText = "⏳ Leyendo código de expediente...";
 
+            // Intento 1: Leer código de barras físico
             Quagga.decodeSingle({
-                decoder: {
-                    readers: ["code_128_reader", "ean_reader", "code_39_reader"] // Formatos habituales de expedientes
-                },
+                decoder: { readers: ["code_128_reader", "ean_reader", "code_39_reader"] },
                 locate: true,
                 src: lectorUrl
             }, function(result) {
                 if (result && result.codeResult) {
                     document.getElementById("nroExp").value = result.codeResult.code;
                     msgEmisor.style.color = "green";
-                    msgEmisor.innerText = "✅ ¡Código de barras leído con éxito!";
+                    msgEmisor.innerText = "✅ ¡Código de barras detectado!";
                 } else {
-                    // Plan B manual o por si la foto salió movida: permite ingresar o avisa
-                    msgEmisor.style.color = "orange";
-                    msgEmisor.innerText = "⚠️ No se detectó automáticamente. Ingresalo manualmente si es necesario.";
+                    // Intento 2 (Plan B automático): Si no es código de barras, lee el texto numérico con OCR específico para el formato GEDE
+                    Tesseract.recognize(archivo, 'eng', { logger: m => {} }).then(({ data: { text } }) => {
+                        let regexExp = /\d{7}-\d{6}\/\d{4}-\d/;
+                        let match = text.match(regexExp);
+                        if (match) {
+                            document.getElementById("nroExp").value = match[0];
+                            msgEmisor.style.color = "green";
+                            msgEmisor.innerText = "✅ ¡Número de expediente extraído!";
+                        } else {
+                            // Limpieza general de números largos si encuentra algo similar
+                            let numerosLimpios = text.replace(/[^\d\-\/]/g, '');
+                            if(numerosLimpios.length > 10) {
+                                document.getElementById("nroExp").value = numerosLimpios.substring(0, 25);
+                                msgEmisor.style.color = "orange";
+                                msgEmisor.innerText = "⚠️ Verificá el número detectado.";
+                            } else {
+                                msgEmisor.style.color = "red";
+                                msgEmisor.innerText = "❌ No se pudo leer automáticamente. Ingresalo manualmente.";
+                            }
+                        }
+                    });
                 }
             });
         }
     }
 
-    // OCR optimizado en español para aislar la carátula entre líneas
+    // OCR estricto en Español para la Carátula
     async function procesarFotoOcr(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
             let msgEmisor = document.getElementById("mensajeEmisor");
             msgEmisor.style.color = "#007bff";
-            msgEmisor.innerText = "⏳ Extrayendo texto de la carátula...";
+            msgEmisor.innerText = "⏳ Procesando carátula en español (Aguardá unos segundos)...";
 
             try {
-                let resultado = await Tesseract.recognize(
-                    archivo,
-                    'spa',
-                    { 
-                        logger: m => {
-                            if(m.status === 'recognizing text') {
-                                let porcentaje = Math.round(m.progress * 100);
-                                msgEmisor.innerText = `⏳ Analizando texto: ${porcentaje}%`;
-                            }
-                        }
-                    }
-                );
+                let worker = await Tesseract.createWorker('spa');
+                let resultado = await worker.recognize(archivo);
+                await worker.terminate();
 
                 let textoCompleto = resultado.data.text;
                 let lineas = textoCompleto.split('\n');
                 let textoCaratula = "";
                 let capturando = false;
 
-                // Lógica para aislar el extracto ubicado entre los indicadores de carátula
                 for (let i = 0; i < lineas.length; i++) {
                     let lineaActual = lineas[i].trim();
                     let lineaUpper = lineaActual.toUpperCase();
 
-                    // Detecta el inicio de la carátula / extracto
                     if (lineaUpper.includes("CARATULA") || lineaUpper.includes("EXTRACTO")) {
                         capturando = true;
                         continue;
                     }
 
-                    // Detecta el final de la zona de carátula (por ejemplo, al llegar al sistema GEDE o fecha de impresión)
                     if (capturando && (lineaUpper.includes("SICE") || lineaUpper.includes("IMPR") || lineaUpper.includes("COD.") || lineaUpper.includes("USR."))) {
                         break;
                     }
@@ -224,16 +223,16 @@
                     }
                 }
 
-                // Si por diseño la etiqueta exacta no venía en la foto pero hay texto, tomamos el bloque principal limpio
+                // Si no encontró las etiquetas exactas, limpia todo el texto útil en español
                 if (!textoCaratula.trim()) {
-                    textoCaratula = textoCompleto.replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ.,\-\/]/gi, ' ').replace(/\s+/g, ' ').trim();
-                } else {
-                    textoCaratula = textoCaratula.replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ.,\-\/]/gi, ' ').replace(/\s+/g, ' ').trim();
+                    textoCaratula = textoCompleto;
                 }
 
-                document.getElementById("caratula").value = textoCaratula;
+                // Limpieza profunda de caracteres extraños ASCII
+                let textoLimpio = textoCaratula.replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ.,\-\/]/gi, ' ').replace(/\s+/g, ' ').trim();
+                document.getElementById("caratula").value = textoLimpio;
 
-                // Búsqueda inteligente de fecha de creación en el texto
+                // Extraer fecha del documento si aparece
                 let regexFecha = /(\d{2}[-\/]\d{2}[-\/]\d{4})|(\d{4}[-\/]\d{2}[-\/]\d{2})/;
                 let coincidencia = textoCompleto.match(regexFecha);
                 
@@ -247,11 +246,11 @@
                 }
 
                 msgEmisor.style.color = "green";
-                msgEmisor.innerText = "✅ ¡Carátula extraída correctamente!";
+                msgEmisor.innerText = "✅ ¡Carátula leída con éxito!";
 
             } catch (error) {
                 msgEmisor.style.color = "red";
-                msgEmisor.innerText = "❌ Error al procesar la imagen.";
+                msgEmisor.innerText = "❌ Error al procesar el OCR.";
                 console.error(error);
             }
         }
@@ -362,7 +361,6 @@
         document.getElementById("loginPass").value = "";
         document.getElementById("mensajeLogin").innerText = "";
         document.getElementById("seccionRol").classList.add("oculto");
-        document.getElementById("seccionLogin").classList.add("oculto"); // Ajuste limpio
         document.getElementById("seccionLogin").classList.remove("oculto");
     }
 
