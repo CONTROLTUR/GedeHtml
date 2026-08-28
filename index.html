@@ -17,6 +17,8 @@
         .btn-danger:hover { background-color: #a71d2a; }
         .btn-success { background-color: #28a745; }
         .btn-success:hover { background-color: #1e7e34; }
+        .btn-secundario { background-color: #17a2b8; }
+        .btn-secundario:hover { background-color: #117a8b; }
         .card { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
         .alerta { background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; }
         .oculto { display: none; }
@@ -100,6 +102,20 @@
             <label>Carátula:</label>
             <textarea id="caratula" rows="3" placeholder="Descripción..."></textarea>
         </div>
+
+        <!-- NUEVO: Fecha de Creación leída por OCR / Cámara -->
+        <div class="form-group">
+            <label>📅 Fecha de Creación (Extraída por OCR / Cámara):</label>
+            <input type="date" id="fechaCreacionExp">
+            <button type="button" onclick="simularOCR()" class="btn-secundario" style="margin-top: 5px;">📷 Leer Fecha de Carátula con Cámara (OCR)</button>
+        </div>
+
+        <!-- NUEVO: Fecha de Entrega -->
+        <div class="form-group">
+            <label>🚚 Fecha de Entrega / Asignación:</label>
+            <input type="date" id="fechaEntregaExp">
+        </div>
+
         <button onclick="guardarExpediente()" class="btn-success">💾 Guardar y Enviar Expediente</button>
         <p id="mensajeEmisor" style="text-align:center; font-weight:bold; margin-top:10px;"></p>
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
@@ -107,11 +123,25 @@
 </div>
 
 <script>
-    // PEGA TU NUEVA URL DE GOOGLE APPS SCRIPT AQUÍ:
+    // TU URL DE GOOGLE APPS SCRIPT:
     const URL_API = "https://script.google.com/macros/s/AKfycbzI_2jGhlx--U9qdxqnfsmfGbAvJmI1mU5n5roSqH6O4LAKlDRn2jyVIKPTaJ9OEVcs/exec";
-
     let usuarioActual = "";
     let emisorActualGlobal = "";
+
+    // Poner fechas de hoy por defecto al entrar a emisor
+    function establecerFechasPorDefecto() {
+        let hoy = new Date().toISOString().split('T')[0];
+        document.getElementById("fechaCreacionExp").value = hoy;
+        document.getElementById("fechaEntregaExp").value = hoy;
+    }
+
+    // Función simulada / preparada para el escaneo OCR de la carátula
+    function simularOCR() {
+        alert("📷 Abriendo cámara para escanear carátula...\n(Aquí se conectará el motor OCR para extraer la fecha automáticamente).");
+        // Simulamos una fecha detectada por OCR (por ejemplo, restando unos días o dejando la de hoy)
+        let hoy = new Date().toISOString().split('T')[0];
+        document.getElementById("fechaCreacionExp").value = hoy;
+    }
 
     async function iniciarSesion() {
         const agente = document.getElementById("loginAgente").value;
@@ -130,7 +160,6 @@
             let usuariosRows = data.usuarios;
             let configRows = data.config;
 
-            // Verificar contraseña
             let encontrado = false;
             let passCorrecta = false;
 
@@ -139,26 +168,14 @@
                 let p = String(usuariosRows[i][1]).trim();
                 if (u.toLowerCase() === agente.toLowerCase()) {
                     encontrado = true;
-                    if (p === pass) {
-                        passCorrecta = true;
-                    }
+                    if (p === pass) passCorrecta = true;
                     break;
                 }
             }
 
-            if (!encontrado) {
-                msg.style.color = "red"; 
-                msg.innerText = "❌ El usuario aún no tiene contraseña. Usá el botón de registro.";
-                return;
-            }
+            if (!encontrado) { msg.style.color = "red"; msg.innerText = "❌ Usuario sin contraseña registrada."; return; }
+            if (!passCorrecta) { msg.style.color = "red"; msg.innerText = "❌ Contraseña incorrecta."; return; }
 
-            if (!passCorrecta) {
-                msg.style.color = "red"; 
-                msg.innerText = "❌ Contraseña incorrecta.";
-                return;
-            }
-
-            // Buscar emisor activo
             emisorActualGlobal = "";
             for(let i = 0; i < configRows.length; i++) {
                 if(String(configRows[i][0]).trim().toLowerCase() === "emisor_activo") {
@@ -172,10 +189,10 @@
             let aviso = document.getElementById("avisoEmisor");
             if(emisorActualGlobal && emisorActualGlobal !== "") {
                 if(emisorActualGlobal.toLowerCase() !== usuarioActual.toLowerCase()) {
-                    aviso.innerText = `⚠️ Aviso de Oficina: Actualmente el agente ${emisorActualGlobal} se encuentra registrado como Emisor.`;
+                    aviso.innerText = `⚠️ Aviso: El agente ${emisorActualGlobal} está como Emisor.`;
                     aviso.classList.remove("oculto");
                 } else {
-                    aviso.innerText = `ℹ️ Actualmente estás registrado como el Emisor activo de la oficina.`;
+                    aviso.innerText = `ℹ️ Estás registrado como el Emisor activo.`;
                     aviso.classList.remove("oculto");
                 }
             } else {
@@ -188,7 +205,6 @@
         } catch (e) {
             msg.style.color = "red"; 
             msg.innerText = "❌ Error de conexión con Google Sheets.";
-            console.error(e);
         }
     }
 
@@ -197,14 +213,11 @@
         const pass = document.getElementById("loginPass").value;
         const msg = document.getElementById("mensajeLogin");
 
-        if (!agente || !pass) { msg.style.color = "red"; msg.innerText = "⚠️ Seleccioná un agente e ingresá una contraseña."; return; }
+        if (!agente || !pass) { msg.style.color = "red"; msg.innerText = "⚠️ Seleccioná un agente y contraseña."; return; }
 
-        msg.style.color = "#333"; msg.innerText = "Registrando contraseña...";
         let datos = { hoja: "Usuarios", action: "registrarPassword", usuario: agente, password: pass };
-        
         await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos) });
-        msg.style.color = "green"; 
-        msg.innerText = "✅ ¡Contraseña registrada con éxito! Ya podés entrar.";
+        msg.style.color = "green"; msg.innerText = "✅ ¡Contraseña registrada con éxito!";
     }
 
     async function elegirRol(rol) {
@@ -212,6 +225,7 @@
             await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hoja: "config", action: "updateEmisor", emisor: usuarioActual }) });
             document.getElementById("seccionRol").classList.add("oculto");
             document.getElementById("seccionEmisor").classList.remove("oculto");
+            establecerFechasPorDefecto();
         } else {
             document.getElementById("seccionRol").classList.add("oculto");
             document.getElementById("seccionReceptor").classList.remove("oculto");
@@ -242,12 +256,15 @@
         const loc = document.getElementById("localidad").value;
         const receptor = document.getElementById("agenteReceptorAsignado").value;
         const caratula = document.getElementById("caratula").value;
+        const fechaCreacion = document.getElementById("fechaCreacionExp").value;
+        const fechaEntrega = document.getElementById("fechaEntregaExp").value;
         const msg = document.getElementById("mensajeEmisor");
 
         if(!nro) { msg.style.color = "red"; msg.innerText = "⚠️ El número de expediente es obligatorio."; return; }
 
-        let fechaHoy = new Date().toLocaleDateString('es-AR');
-        let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaHoy, fechaHoy, usuarioActual, "sin recibir", "", ""];
+        // Estructura ordenada para guardar en la hoja movimientos:
+        // [ID, NroExp, Tipo, Localidad, Receptor, Caratula, FechaCreacion, FechaEntrega, Emisor, Estado, etc.]
+        let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "", ""];
 
         msg.style.color = "#333"; msg.innerText = "Guardando...";
         await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hoja: "movimientos", action: "append", valores: nuevaFila }) });
@@ -255,6 +272,7 @@
         msg.style.color = "green"; msg.innerText = "✅ ¡Expediente guardado con éxito!";
         document.getElementById("nroExp").value = "";
         document.getElementById("caratula").value = "";
+        establecerFechasPorDefecto();
     }
 
     async function cargarExpedientesReceptor() {
@@ -275,6 +293,7 @@
             let agenteReceptor = String(f[4]).trim().toLowerCase();
             let caratula = f[5];
             let fechaCreacion = f[6];
+            let fechaEntrega = f[7];
             let estado = String(f[9]).trim().toLowerCase();
 
             if (agenteReceptor === usuarioActual.toLowerCase() && estado === "sin recibir") {
@@ -284,7 +303,8 @@
                         <b>Nro Exp:</b> ${nroExp} <br>
                         <b>Localidad:</b> ${localidad} <br>
                         <b>Carátula:</b> ${caratula} <br>
-                        <b>Fecha:</b> ${fechaCreacion} <br><br>
+                        <b>Fecha Creación:</b> ${fechaCreacion} <br>
+                        <b>Fecha Entrega:</b> ${fechaEntrega} <br><br>
                         <button onclick="marcarRecibido('${id}')" class="btn-success">📥 Marcar Recibido</button>
                     </div>
                 `;
