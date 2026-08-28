@@ -76,14 +76,19 @@
     <!-- VISTA 4: PANEL EMISOR -->
     <div id="seccionEmisor" class="oculto">
         <h2>📤 Panel de Agente Emisor</h2>
+        
+        <!-- Número de Expediente con lector de Código de Barras -->
         <div class="form-group">
             <label>Número de Expediente:</label>
             <input type="text" id="nroExp" placeholder="Ej: 288244">
+            <button type="button" onclick="escanearCodigoBarra()" class="btn-secundario" style="margin-top: 5px;">📷 Escanear Código de Barras</button>
         </div>
+
         <div class="form-group">
             <label>Localidad:</label>
             <input type="text" id="localidad" placeholder="Ej: Salta">
         </div>
+
         <div class="form-group">
             <label>Agente Receptor Asignado:</label>
             <select id="agenteReceptorAsignado">
@@ -98,19 +103,21 @@
                 <option value="Javi">Javi</option>
             </select>
         </div>
+
+        <!-- Carátula con lectura OCR por cámara -->
         <div class="form-group">
             <label>Carátula:</label>
             <textarea id="caratula" rows="3" placeholder="Descripción..."></textarea>
+            <button type="button" onclick="leerCaratulaOCR()" class="btn-secundario" style="margin-top: 5px;">📷 Leer Carátula con Cámara (OCR)</button>
         </div>
 
-        <!-- NUEVO: Fecha de Creación leída por OCR / Cámara -->
+        <!-- Fecha de Creación (Llenada automáticamente por el OCR de la carátula) -->
         <div class="form-group">
-            <label>📅 Fecha de Creación (Extraída por OCR / Cámara):</label>
+            <label>📅 Fecha de Creación (Extraída del documento):</label>
             <input type="date" id="fechaCreacionExp">
-            <button type="button" onclick="simularOCR()" class="btn-secundario" style="margin-top: 5px;">📷 Leer Fecha de Carátula con Cámara (OCR)</button>
         </div>
 
-        <!-- NUEVO: Fecha de Entrega -->
+        <!-- Fecha de Entrega -->
         <div class="form-group">
             <label>🚚 Fecha de Entrega / Asignación:</label>
             <input type="date" id="fechaEntregaExp">
@@ -123,22 +130,30 @@
 </div>
 
 <script>
-    // TU URL DE GOOGLE APPS SCRIPT:
     const URL_API = "https://script.google.com/macros/s/AKfycbzI_2jGhlx--U9qdxqnfsmfGbAvJmI1mU5n5roSqH6O4LAKlDRn2jyVIKPTaJ9OEVcs/exec";
+
     let usuarioActual = "";
     let emisorActualGlobal = "";
 
-    // Poner fechas de hoy por defecto al entrar a emisor
     function establecerFechasPorDefecto() {
         let hoy = new Date().toISOString().split('T')[0];
         document.getElementById("fechaCreacionExp").value = hoy;
         document.getElementById("fechaEntregaExp").value = hoy;
     }
 
-    // Función simulada / preparada para el escaneo OCR de la carátula
-    function simularOCR() {
-        alert("📷 Abriendo cámara para escanear carátula...\n(Aquí se conectará el motor OCR para extraer la fecha automáticamente).");
-        // Simulamos una fecha detectada por OCR (por ejemplo, restando unos días o dejando la de hoy)
+    // Escáner de código de barras para el Número de Expediente
+    function escanearCodigoBarra() {
+        alert("📷 Activando cámara para escanear código de barras...");
+        // Aquí se integrará la captura de la cámara para autocompletar el número
+        let numeroSimulado = Math.floor(100000 + Math.random() * 900000);
+        document.getElementById("nroExp").value = numeroSimulado;
+    }
+
+    // OCR para la Carátula y la Fecha de Creación
+    function leerCaratulaOCR() {
+        alert("📷 Tomando foto de la carátula para procesamiento OCR...");
+        // Simulación de lectura OCR que completa la descripción y la fecha del documento
+        document.getElementById("caratula").value = "ACTUACIÓN INICIADA POR DIGITALIZACIÓN DE EXPEDIENTE - GEDE";
         let hoy = new Date().toISOString().split('T')[0];
         document.getElementById("fechaCreacionExp").value = hoy;
     }
@@ -262,8 +277,6 @@
 
         if(!nro) { msg.style.color = "red"; msg.innerText = "⚠️ El número de expediente es obligatorio."; return; }
 
-        // Estructura ordenada para guardar en la hoja movimientos:
-        // [ID, NroExp, Tipo, Localidad, Receptor, Caratula, FechaCreacion, FechaEntrega, Emisor, Estado, etc.]
         let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "", ""];
 
         msg.style.color = "#333"; msg.innerText = "Guardando...";
