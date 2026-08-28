@@ -6,8 +6,6 @@
     <title>Gestión de Expedientes - GEDE</title>
     <!-- Librería OCR Tesseract.js -->
     <script src="https://unpkg.com/tesseract.js@v5.1.0/dist/tesseract.min.js"></script>
-    <!-- Librería QuaggaJS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
         .container { max-width: 650px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
@@ -78,12 +76,12 @@
     <div id="seccionEmisor" class="oculto">
         <h2>📤 Panel de Agente Emisor</h2>
         
-        <!-- Número de Expediente (Código de barras o texto inferior) -->
+        <!-- Número de Expediente -->
         <div class="form-group">
             <label>Número de Expediente:</label>
             <input type="text" id="nroExp" placeholder="Ej: 0060016-193687/2025-1">
-            <label for="camaraBarra" class="btn-secundario">📷 Sacar Foto al Código / Nro de Expediente</label>
-            <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="procesarFotoBarra(this)">
+            <label for="camaraBarra" class="btn-secundario">📷 Sacar Foto al Nro de Expediente</label>
+            <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="procesarFotoExpediente(this)">
         </div>
 
         <div class="form-group">
@@ -106,7 +104,7 @@
             </select>
         </div>
 
-        <!-- Carátula con OCR estricto en Español -->
+        <!-- Carátula con OCR optimizado -->
         <div class="form-group">
             <label>Carátula (Extracto entre líneas):</label>
             <textarea id="caratula" rows="6" placeholder="Texto extraído de la carátula..."></textarea>
@@ -132,6 +130,7 @@
 
 <script>
     const URL_API = "https://script.google.com/macros/s/AKfycbzI_2jGhlx--U9qdxqnfsmfGbAvJmI1mU5n5roSqH6O4LAKlDRn2jyVIKPTaJ9OEVcs/exec";
+
     let usuarioActual = "";
     let emisorActualGlobal = "";
 
@@ -141,59 +140,55 @@
         document.getElementById("fechaEntregaExp").value = hoy;
     }
 
-    // Procesar foto de código de barras / número de expediente inferior
-    function procesarFotoBarra(input) {
+    // Lectura rápida y directa del número de expediente por OCR enfocado
+    async function procesarFotoExpediente(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
-            let lectorUrl = URL.createObjectURL(archivo);
             let msgEmisor = document.getElementById("mensajeEmisor");
             msgEmisor.style.color = "#007bff";
-            msgEmisor.innerText = "⏳ Leyendo código de expediente...";
+            msgEmisor.innerText = "⏳ Leyendo número de expediente...";
 
-            // Intento 1: Leer código de barras físico
-            Quagga.decodeSingle({
-                decoder: { readers: ["code_128_reader", "ean_reader", "code_39_reader"] },
-                locate: true,
-                src: lectorUrl
-            }, function(result) {
-                if (result && result.codeResult) {
-                    document.getElementById("nroExp").value = result.codeResult.code;
+            try {
+                let worker = await Tesseract.createWorker('eng');
+                let resultado = await worker.recognize(archivo);
+                await worker.terminate();
+
+                let texto = resultado.data.text;
+                
+                // Buscamos directamente el patrón exacto GEDE (ej: 0060016-193687/2025-1)
+                let regexPatron = /\d{7}-\d{6}\/\d{4}-\d/;
+                let coincidencia = texto.match(regexPatron);
+
+                if (coincidencia) {
+                    document.getElementById("nroExp").value = coincidencia[0];
                     msgEmisor.style.color = "green";
-                    msgEmisor.innerText = "✅ ¡Código de barras detectado!";
+                    msgEmisor.innerText = "✅ ¡Número de expediente detectado!";
                 } else {
-                    // Intento 2 (Plan B automático): Si no es código de barras, lee el texto numérico con OCR específico para el formato GEDE
-                    Tesseract.recognize(archivo, 'eng', { logger: m => {} }).then(({ data: { text } }) => {
-                        let regexExp = /\d{7}-\d{6}\/\d{4}-\d/;
-                        let match = text.match(regexExp);
-                        if (match) {
-                            document.getElementById("nroExp").value = match[0];
-                            msgEmisor.style.color = "green";
-                            msgEmisor.innerText = "✅ ¡Número de expediente extraído!";
-                        } else {
-                            // Limpieza general de números largos si encuentra algo similar
-                            let numerosLimpios = text.replace(/[^\d\-\/]/g, '');
-                            if(numerosLimpios.length > 10) {
-                                document.getElementById("nroExp").value = numerosLimpios.substring(0, 25);
-                                msgEmisor.style.color = "orange";
-                                msgEmisor.innerText = "⚠️ Verificá el número detectado.";
-                            } else {
-                                msgEmisor.style.color = "red";
-                                msgEmisor.innerText = "❌ No se pudo leer automáticamente. Ingresalo manualmente.";
-                            }
-                        }
-                    });
+                    // Plan alternativo: buscar cualquier secuencia numérica larga con guiones y barras
+                    let numerosSueltos = texto.match(/[\d\-\/]{10,}/);
+                    if (numerosSueltos) {
+                        document.getElementById("nroExp").value = numerosSueltos[0].trim();
+                        msgEmisor.style.color = "orange";
+                        msgEmisor.innerText = "⚠️ Verificá el número detectado.";
+                    } else {
+                        msgEmisor.style.color = "red";
+                        msgEmisor.innerText = "❌ No se reconoció. Ingresalo manualmente.";
+                    }
                 }
-            });
+            } catch (error) {
+                msgEmisor.style.color = "red";
+                msgEmisor.innerText = "❌ Error al leer la imagen.";
+            }
         }
     }
 
-    // OCR estricto en Español para la Carátula
+    // OCR optimizado y rápido para la Carátula
     async function procesarFotoOcr(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
             let msgEmisor = document.getElementById("mensajeEmisor");
             msgEmisor.style.color = "#007bff";
-            msgEmisor.innerText = "⏳ Procesando carátula en español (Aguardá unos segundos)...";
+            msgEmisor.innerText = "⏳ Extrayendo carátula...";
 
             try {
                 let worker = await Tesseract.createWorker('spa');
@@ -223,16 +218,13 @@
                     }
                 }
 
-                // Si no encontró las etiquetas exactas, limpia todo el texto útil en español
                 if (!textoCaratula.trim()) {
                     textoCaratula = textoCompleto;
                 }
 
-                // Limpieza profunda de caracteres extraños ASCII
                 let textoLimpio = textoCaratula.replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ.,\-\/]/gi, ' ').replace(/\s+/g, ' ').trim();
                 document.getElementById("caratula").value = textoLimpio;
 
-                // Extraer fecha del documento si aparece
                 let regexFecha = /(\d{2}[-\/]\d{2}[-\/]\d{4})|(\d{4}[-\/]\d{2}[-\/]\d{2})/;
                 let coincidencia = textoCompleto.match(regexFecha);
                 
@@ -251,7 +243,6 @@
             } catch (error) {
                 msgEmisor.style.color = "red";
                 msgEmisor.innerText = "❌ Error al procesar el OCR.";
-                console.error(error);
             }
         }
     }
