@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Expedientes - GEDE</title>
-    <!-- Librería OCR Tesseract.js -->
+    <!-- Librería OCR Tesseract.js (para la carátula en el siguiente paso) -->
     <script src="https://unpkg.com/tesseract.js@v5.1.0/dist/tesseract.min.js"></script>
-    <!-- Librería ZXing para lectura ultrarrápida de códigos de barras y QR -->
-    <script src="https://unpkg.com/@zxing/library@latest"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
         .container { max-width: 650px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
@@ -78,12 +76,12 @@
     <div id="seccionEmisor" class="oculto">
         <h2>📤 Panel de Agente Emisor</h2>
         
-        <!-- Módulo 1: Código de Barras (Ultrarrápido con ZXing) -->
+        <!-- Módulo de Código de Barras Nativo y Ultrarrápido -->
         <div class="form-group">
-            <label>Número de Expediente (Código de Barras):</label>
+            <label>Número de Expediente:</label>
             <input type="text" id="nroExp" placeholder="Ej: 0060016-193687/2025-1">
-            <label for="camaraBarra" class="btn-secundario">📷 Escanear Código de Barras (Izquierda Inferior)</label>
-            <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="escanearCodigoBarras(this)">
+            <label for="camaraBarra" class="btn-secundario">📷 Escanear Código de Barras</label>
+            <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="escanearCodigoNativo(this)">
         </div>
 
         <div class="form-group">
@@ -106,12 +104,10 @@
             </select>
         </div>
 
-        <!-- Módulo 2: Carátula OCR independiente -->
+        <!-- Carátula (Temporalmente manual o texto libre hasta afinar este módulo) -->
         <div class="form-group">
-            <label>Carátula (Extracto entre líneas):</label>
-            <textarea id="caratula" rows="6" placeholder="Texto extraído de la carátula..."></textarea>
-            <label for="camaraOcr" class="btn-camara">📷 Extraer Carátula (OCR)</label>
-            <input type="file" id="camaraOcr" accept="image/*" capture="environment" style="display:none;" onchange="procesarOcrCaratula(this)">
+            <label>Carátula (Extracto):</label>
+            <textarea id="caratula" rows="4" placeholder="Detalle del expediente..."></textarea>
         </div>
 
         <div class="form-group">
@@ -131,7 +127,7 @@
 </div>
 
 <script>
-    const URL_API = "https://script.google.com/macros/s/AKfycbzI_2jGhlx--U9qdxqnfsmfGbAvJmI1mU5n5roSqH6O4LAKlDRn2jyVIKPTaJ9OEVcs/exec";
+    const URL_API = "PEGA_AQUI_TU_URL_DE_APPS_SCRIPT";
 
     let usuarioActual = "";
     let emisorActualGlobal = "";
@@ -142,98 +138,39 @@
         document.getElementById("fechaEntregaExp").value = hoy;
     }
 
-    // 1. MÓDULO DE LECTURA DE CÓDIGO DE BARRAS (Ultrarrápido y liviano)
-    async function escanearCodigoBarras(input) {
+    // Lector de códigos de barras ultra rápido basado en la API nativa del navegador móvil
+    async function escanearCodigoNativo(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
             let msgEmisor = document.getElementById("mensajeEmisor");
             msgEmisor.style.color = "#007bff";
             msgEmisor.innerText = "⏳ Leyendo código de barras...";
 
-            let reader = new FileReader();
-            reader.onload = function (e) {
-                let imgElement = new Image();
-                imgElement.onload = function () {
-                    const codeReader = new ZXing.BrowserBarcodeReader();
-                    codeReader.decodeFromImage(imgElement)
-                        .then(result => {
-                            document.getElementById("nroExp").value = result.text;
-                            msgEmisor.style.color = "green";
-                            msgEmisor.innerText = "✅ ¡Código de barras leído con éxito!";
-                        })
-                        .catch(err => {
-                            msgEmisor.style.color = "orange";
-                            msgEmisor.innerText = "⚠️ No se detectó barra limpia. Ingresalo manualmente si es necesario.";
-                            console.error(err);
-                        });
-                };
-                imgElement.src = e.target.result;
-            };
-            reader.readAsDataURL(archivo);
-        }
-    }
-
-    // 2. MÓDULO OCR INDEPENDIENTE PARA LA CARÁTULA
-    async function procesarOcrCaratula(input) {
-        if (input.files && input.files[0]) {
-            let archivo = input.files[0];
-            let msgEmisor = document.getElementById("mensajeEmisor");
-            msgEmisor.style.color = "#007bff";
-            msgEmisor.innerText = "⏳ Extrayendo carátula (OCR)...";
-
             try {
-                let worker = await Tesseract.createWorker('spa');
-                let resultado = await worker.recognize(archivo);
-                await worker.terminate();
-
-                let textoCompleto = resultado.data.text;
-                let lineas = textoCompleto.split('\n');
-                let textoCaratula = "";
-                let capturando = false;
-
-                for (let i = 0; i < lineas.length; i++) {
-                    let lineaActual = lineas[i].trim();
-                    let lineaUpper = lineaActual.toUpperCase();
-
-                    if (lineaUpper.includes("CARATULA") || lineaUpper.includes("EXTRACTO")) {
-                        capturando = true;
-                        continue;
-                    }
-
-                    if (capturando && (lineaUpper.includes("SICE") || lineaUpper.includes("IMPR") || lineaUpper.includes("COD.") || lineaUpper.includes("USR."))) {
-                        break;
-                    }
-
-                    if (capturando && lineaActual !== "") {
-                        textoCaratula += lineaActual + " ";
-                    }
+                // Verificamos si el navegador soporta el detector nativo de códigos
+                if (!('BarcodeDetector' in window)) {
+                    throw new Error("BarcodeDetector no soportado en este navegador.");
                 }
 
-                if (!textoCaratula.trim()) {
-                    textoCaratula = textoCompleto;
+                const detector = new BarcodeDetector({ 
+                    formats: ['code_128', 'code_39', 'ean_13', 'pdf417', 'qr_code'] 
+                });
+
+                let imagenBitmap = await createImageBitmap(archivo);
+                let resultados = await detector.detect(imagenBitmap);
+
+                if (resultados.length > 0) {
+                    document.getElementById("nroExp").value = resultados[0].rawValue;
+                    msgEmisor.style.color = "green";
+                    msgEmisor.innerText = "✅ ¡Código de barras detectado con éxito!";
+                } else {
+                    msgEmisor.style.color = "orange";
+                    msgEmisor.innerText = "⚠️ No se detectó código en la foto. Acercá más la cámara al código de barras.";
                 }
-
-                let textoLimpio = textoCaratula.replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ.,\-\/]/gi, ' ').replace(/\s+/g, ' ').trim();
-                document.getElementById("caratula").value = textoLimpio;
-
-                let regexFecha = /(\d{2}[-\/]\d{2}[-\/]\d{4})|(\d{4}[-\/]\d{2}[-\/]\d{2})/;
-                let coincidencia = textoCompleto.match(regexFecha);
-                
-                if (coincidencia) {
-                    let fechaStr = coincidencia[0].replace(/\//g, '-');
-                    if (fechaStr.indexOf('-') === 2) {
-                        let partes = fechaStr.split('-');
-                        fechaStr = `${partes[2]}-${partes[1]}-${partes[0]}`;
-                    }
-                    document.getElementById("fechaCreacionExp").value = fechaStr;
-                }
-
-                msgEmisor.style.color = "green";
-                msgEmisor.innerText = "✅ ¡Carátula extraída correctamente!";
-
             } catch (error) {
+                // Plan de respaldo por si el navegador móvil no trae el detector nativo integrado
                 msgEmisor.style.color = "red";
-                msgEmisor.innerText = "❌ Error al procesar el OCR de la carátula.";
+                msgEmisor.innerText = "❌ Tu navegador no soporta lectura directa. Ingresá el número manualmente.";
                 console.error(error);
             }
         }
