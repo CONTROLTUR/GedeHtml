@@ -22,14 +22,17 @@
         .card { background: #f8f9fa; border: 1px solid #ddd; padding: 12px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; }
         .card-recibido { background: #e2f0d9; border-color: #c3e6cb; }
         .card-inspeccion { border-left: 5px solid #ffc107; }
+        
+        /* Estilo para las fichas horizontales de búsqueda (Punto 2) */
+        .card-busqueda { background: #fff; border: 1px solid #bbb; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; font-size: 0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .fila-ficha { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .fila-ficha span { flex: 1; }
+        .fila-ficha span:nth-child(2) { text-align: right; }
+
         .alerta { background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; }
         .dashboard-box { background: #e9ecef; border: 1px solid #ced4da; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; }
         .dashboard-box h4 { margin: 0 0 8px 0; color: #007bff; font-size: 0.95rem; text-align: left; }
         .oculto { display: none; }
-        .table-responsive { width: 100%; overflow-x: auto; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 500px; }
-        table, th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-        th { background-color: #007bff; color: white; }
     </style>
 </head>
 <body>
@@ -62,12 +65,11 @@
         <p id="mensajeLogin" style="text-align:center; font-weight:bold; margin-top:15px;"></p>
     </div>
 
-    <!-- VISTA 2: SELECCIÓN DE ROL / MENÚ PRINCIPAL CON INDICADORES -->
+    <!-- VISTA 2: SELECCIÓN DE ROL / MENÚ PRINCIPAL -->
     <div id="seccionRol" class="oculto">
         <h2 id="saludoUsuario"></h2>
         <div id="avisoEmisor" class="alerta oculto"></div>
         
-        <!-- Panel de Indicadores de Gestión -->
         <div class="dashboard-box">
             <h4>📊 Indicadores de Gestión GEDE</h4>
             <div id="contenidoDashboard">Cargando indicadores...</div>
@@ -78,7 +80,6 @@
         <button onclick="elegirRol('emisor')" class="btn-success">📤 Ingresar como EMISOR</button>
         <button onclick="elegirRol('receptor')" style="margin-top: 15px;">📥 Ingresar como RECEPTOR</button>
         <button onclick="abrirModuloBusqueda()" class="btn-secundario" style="margin-top: 15px;">🔍 Buscar y Exportar Expedientes</button>
-        <button onclick="liberarRolEmisor()" class="btn-warning" style="margin-top: 15px;">🔓 Liberar / Quitar Estado de Emisor Activo</button>
         <button onclick="cerrarSesion()" class="btn-danger" style="margin-top: 30px;">🔒 Cerrar Sesión</button>
     </div>
 
@@ -100,6 +101,9 @@
     <div id="seccionEmisor" class="oculto">
         <h2>📤 Panel de Agente Emisor</h2>
         
+        <!-- Botón para desloguearse/liberar rol de emisor aquí (Punto 5) -->
+        <button onclick="liberarRolEmisor()" class="btn-warning" style="margin-bottom: 15px;">🔓 Salir del modo Emisor (Liberar Estado)</button>
+
         <div class="form-group">
             <label>Número de Expediente:</label>
             <input type="text" id="nroExp" placeholder="Ej: 0060016-193687/2025-1">
@@ -200,7 +204,8 @@
         <button onclick="exportarDatos('filtrado')" class="btn-success" style="margin-top: 10px;">📊 Exportar Filtrados (CSV/Excel)</button>
         <button onclick="exportarDatos('todo')" class="btn-warning" style="margin-top: 10px;">📂 Exportar Base Completa (CSV/Excel)</button>
         
-        <div id="resultadoBusquedaContainer" class="table-responsive" style="margin-top: 20px;"></div>
+        <!-- Contenedor con formato ficha horizontal (Punto 2) -->
+        <div id="resultadoBusquedaContainer" style="margin-top: 20px;"></div>
         
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
     </div>
@@ -212,6 +217,18 @@
     let usuarioActual = "";
     let emisorActualGlobal = "";
     let cacheMovimientos = [];
+
+    // Función auxiliar para formatear fechas de tipo ISO o largas a DD/MM/AAAA (Punto 3)
+    function formatearFecha(fechaStr) {
+        if (!fechaStr) return "-";
+        // Si viene con formato yyyy-mm-dd o similar
+        let soloFecha = String(fechaStr).split('T')[0];
+        let partes = soloFecha.split('-');
+        if (partes.length === 3) {
+            return `${partes[2]}/${partes[1]}/${partes[0]}`;
+        }
+        return soloFecha;
+    }
 
     function establecerFechasPorDefecto() {
         let hoy = new Date().toISOString().split('T')[0];
@@ -351,7 +368,6 @@
                 aviso.classList.add("oculto");
             }
 
-            // Calcular y mostrar indicadores de gestión en el menú
             await calcularIndicadoresDashboard();
 
             document.getElementById("seccionLogin").classList.add("oculto");
@@ -379,26 +395,19 @@
                 let f = filas[i];
                 let localidad = f.length > 3 && f[3] ? String(f[3]).trim() : "Sin Localidad";
                 let receptor = f.length > 4 && f[4] ? String(f[4]).trim() : "Sin Asignar";
-                let requiereInspeccion = f.length > 10 ? String(f[10]).trim() : ""; // Columna 10 para inspección
+                let requiereInspeccion = f.length > 10 ? String(f[10]).trim() : "";
                 let estado = f.length > 9 ? String(f[9]).trim().toLowerCase() : "";
 
-                // Conteo Localidades
                 mapLocalidades[localidad] = (mapLocalidades[localidad] || 0) + 1;
-
-                // Conteo Asignaciones por Inspector
                 mapInspectores[receptor] = (mapInspectores[receptor] || 0) + 1;
 
-                // Conteo Inspecciones pendientes o marcadas
                 if (requiereInspeccion.toLowerCase() === "sí" && estado === "sin recibir") {
                     totalInspeccionesPendientes++;
                 }
             }
 
-            // Ordenar Localidades de mayor a menor
             let locsOrdenadas = Object.entries(mapLocalidades).sort((a, b) => b[1] - a[1]).slice(0, 3);
-            let textoLocs = locsOrdenadas.map(item => `📍 <b>${item.first || item[0]}</b> (${item[1]} exp.)`).join("<br>");
-
-            // Texto Inspectores
+            let textoLocs = locsOrdenadas.map(item => `📍 <b>${item[0]}</b> (${item[1]} exp.)`).join("<br>");
             let textoInspectores = Object.entries(mapInspectores).map(item => `👤 <b>${item[0]}</b>: ${item[1]} exp.`).join(" | ");
 
             contenedor.innerHTML = `
@@ -429,7 +438,7 @@
         await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "config", action: "updateEmisor", emisor: "" }) });
         emisorActualGlobal = "";
         document.getElementById("avisoEmisor").classList.add("oculto");
-        alert("¡Rol de emisor liberado con éxito! Ahora el próximo agente podrá ingresar sin alertas.");
+        alert("¡Rol de emisor liberado con éxito!");
     }
 
     async function elegirRol(rol) {
@@ -469,6 +478,7 @@
         }
     }
 
+    // Búsqueda con formato horizontal y fichas prolijas (Puntos 2, 3 y 4)
     function ejecutarBusqueda() {
         let fNro = document.getElementById("filtroNro").value.toLowerCase();
         let fAgente = document.getElementById("filtroAgente").value.toLowerCase();
@@ -477,7 +487,7 @@
         let fDesde = document.getElementById("filtroFechaDesde").value;
         let fHasta = document.getElementById("filtroFechaHasta").value;
 
-        let html = "<table><tr><th>Nro Exp</th><th>Localidad</th><th>Receptor</th><th>Carátula</th><th>Creación</th><th>Estado</th><th>Inspección</th></tr>";
+        let html = "";
         let contador = 0;
 
         for (let i = 1; i < cacheMovimientos.length; i++) {
@@ -486,32 +496,44 @@
             let localidad = f.length > 3 ? String(f[3]) : "";
             let receptor = f.length > 4 ? String(f[4]) : "";
             let caratula = f.length > 5 ? String(f[5]) : "";
-            let fechaCreacion = f.length > 6 ? String(f[6]) : "";
+            let fechaCreacion = formatearFecha(f.length > 6 ? String(f[6]) : "");
+            let fechaEntrega = formatearFecha(f.length > 7 ? String(f[7]) : "");
             let emisor = f.length > 8 ? String(f[8]) : "";
             let estado = f.length > 9 ? String(f[9]) : "";
-            let inspeccion = f.length > 10 ? String(f[10]) : "";
+            let inspeccion = f.length > 10 ? String(f[10]) : "No";
+            let fechaRecepcion = formatearFecha(f.length > 11 ? String(f[11]) : "");
 
             if (fNro && !nroExp.toLowerCase().includes(fNro)) continue;
             if (fAgente && !receptor.toLowerCase().includes(fAgente) && !emisor.toLowerCase().includes(fAgente)) continue;
             if (fLoc && !localidad.toLowerCase().includes(fLoc)) continue;
             if (fCaratula && !caratula.toLowerCase().includes(fCaratula)) continue;
-            if (fDesde && fechaCreacion < fDesde) continue;
-            if (fHasta && fechaCreacion > fHasta) continue;
+            if (fDesde && f[6] && f[6].split('T')[0] < fDesde) continue;
+            if (fHasta && f[6] && f[6].split('T')[0] > fHasta) continue;
 
             contador++;
-            html += `<tr>
-                <td><b>${nroExp}</b></td>
-                <td>${localidad}</td>
-                <td>${receptor}</td>
-                <td style="max-width: 150px; word-break: break-word;">${caratula}</td>
-                <td>${fechaCreacion}</td>
-                <td>${estado}</td>
-                <td>${inspeccion}</td>
-            </tr>`;
+            let badgeEstado = estado.toLowerCase() === "recibido" ? `Recibido ✅ (${fechaRecepcion})` : "No recibido ⏳";
+            let iconoInspeccion = (inspeccion.toLowerCase() === "sí" || inspeccion === "True" || inspeccion === "1") ? "Sí ⚠️" : "No ❌";
+
+            html += `
+                <div class="card-busqueda">
+                    <div class="fila-ficha">
+                        <span><b>Nro:</b> ${nroExp}</span>
+                        <span><b>Creación:</b> ${fechaCreacion}</span>
+                    </div>
+                    <div style="margin: 4px 0;"><b>Carátula:</b> ${caratula} (${localidad})</div>
+                    <div class="fila-ficha">
+                        <span><b>Emisión:</b> ${fechaEntrega}</span>
+                        <span><b>Recepción:</b> ${fechaRecepcion !== "-" ? fechaRecepcion : "-"}</span>
+                    </div>
+                    <div class="fila-ficha" style="margin-top: 4px; border-top: 1px solid #eee; padding-top: 4px;">
+                        <span><b>Estado:</b> ${badgeEstado}</span>
+                        <span><b>Inspección:</b> ${iconoInspeccion}</span>
+                    </div>
+                </div>
+            `;
         }
 
-        html += "</table>";
-        document.getElementById("resultadoBusquedaContainer").innerHTML = `<b>Se encontraron ${contador} registros:</b>` + html;
+        document.getElementById("resultadoBusquedaContainer").innerHTML = `<b>Se encontraron ${contador} registros:</b><br><br>` + (html || "<p>No se encontraron expedientes con esos filtros.</p>");
     }
 
     function exportarDatos(tipo) {
@@ -541,15 +563,14 @@
                 let localidad = f.length > 3 ? String(f[3]) : "";
                 let receptor = f.length > 4 ? String(f[4]) : "";
                 let caratula = f.length > 5 ? String(f[5]) : "";
-                let fechaCreacion = f.length > 6 ? String(f[6]) : "";
                 let emisor = f.length > 8 ? String(f[8]) : "";
 
                 if (fNro && !nroExp.toLowerCase().includes(fNro)) continue;
                 if (fAgente && !receptor.toLowerCase().includes(fAgente) && !emisor.toLowerCase().includes(fAgente)) continue;
                 if (fLoc && !localidad.toLowerCase().includes(fLoc)) continue;
                 if (fCaratula && !caratula.toLowerCase().includes(fCaratula)) continue;
-                if (fDesde && fechaCreacion < fDesde) continue;
-                if (fHasta && fechaCreacion > fHasta) continue;
+                if (fDesde && f[6] && f[6].split('T')[0] < fDesde) continue;
+                if (fHasta && f[6] && f[6].split('T')[0] > fHasta) continue;
 
                 filasExportar.push(f);
             }
@@ -572,8 +593,6 @@
     }
 
     async function volverMenuRoles() {
-        await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "config", action: "updateEmisor", emisor: "" }) });
-        
         document.getElementById("seccionEmisor").classList.add("oculto");
         document.getElementById("seccionReceptor").classList.add("oculto");
         document.getElementById("seccionBusqueda").classList.add("oculto");
@@ -582,7 +601,7 @@
     }
 
     async function cerrarSesion() {
-        await volverMenuRoles();
+        await liberarRolEmisor();
         usuarioActual = "";
         document.getElementById("loginPass").value = "";
         document.getElementById("mensajeLogin").innerText = "";
@@ -602,6 +621,7 @@
         if(!nro) { msg.style.color = "red"; msg.innerText = "⚠️ El número de expediente es obligatorio."; return; }
         if(!loc) { msg.style.color = "red"; msg.innerText = "⚠️ Debe seleccionar o ingresar una localidad."; return; }
 
+        // Estructura: ID, Nro, General, Localidad, Receptor, Caratula, Creacion, Entrega, Emisor, Estado, Inspeccion, FechaRecepcion
         let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "No", ""];
 
         msg.style.color = "#333"; msg.innerText = "Guardando...";
@@ -637,10 +657,11 @@
             let localidad = f.length > 3 ? f[3] : "";
             let agenteReceptor = f.length > 4 ? String(f[4]).trim().toLowerCase() : "";
             let caratula = f.length > 5 ? f[5] : "";
-            let fechaCreacion = f.length > 6 ? f[6] : "";
-            let fechaEntrega = f.length > 7 ? f[7] : "";
+            let fechaCreacion = formatearFecha(f.length > 6 ? f[6] : "");
+            let fechaEntrega = formatearFecha(f.length > 7 ? f[7] : "");
             let estado = f.length > 9 ? String(f[9]).trim().toLowerCase() : "";
             let requiereInspeccion = f.length > 10 ? f[10] : "No";
+            let fechaRecepcion = formatearFecha(f.length > 11 ? f[11] : "");
 
             if (agenteReceptor === usuarioActual.toLowerCase()) {
                 if (estado === "sin recibir") {
@@ -661,14 +682,15 @@
                     `;
                 } else {
                     hayRecibidos = true;
-                    let claseInspeccion = requiereInspeccion === "Sí" ? "card-recibido card-inspeccion" : "card-recibido";
-                    let textoInspeccion = requiereInspeccion === "Sí" ? "Sí ⚠️" : "No";
+                    let esInspeccion = (requiereInspeccion.toLowerCase() === "sí" || requiereInspeccion === "True" || requiereInspeccion === "1");
+                    let claseInspeccion = esInspeccion ? "card-recibido card-inspeccion" : "card-recibido";
+                    let textoInspeccion = esInspeccion ? "Sí ⚠️" : "No";
                     htmlRecibidos += `
                         <div class="card ${claseInspeccion}">
                             <b>Nro Exp:</b> ${nroExp} <br>
                             <b>Localidad:</b> ${localidad} <br>
                             <b>Carátula:</b> ${caratula} <br>
-                            <b>Estado:</b> Recibido ✅ | <b>Requiere Inspección:</b> ${textoInspeccion}
+                            <b>Estado:</b> Recibido ✅ (${fechaRecepcion}) | <b>Requiere Inspección:</b> ${textoInspeccion}
                         </div>
                     `;
                 }
@@ -682,8 +704,9 @@
     async function marcarRecibido(idExp) {
         let chk = document.getElementById(`chkInspeccion_${idExp}`);
         let requiereInspeccion = (chk && chk.checked) ? "Sí" : "No";
+        let fechaHoy = new Date().toISOString().split('T')[0];
 
-        await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "marcarRecibido", id: idExp, inspeccion: requiereInspeccion }) });
+        await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "marcarRecibido", id: idExp, inspeccion: requiereInspeccion, fechaRecepcion: fechaHoy }) });
         alert("¡Expediente marcado como recibido!");
         cargarExpedientesReceptor();
     }
