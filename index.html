@@ -1,4 +1,4 @@
-   <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -7,23 +7,28 @@
     <!-- Librería OCR Tesseract.js -->
     <script src="https://unpkg.com/tesseract.js@v5.1.0/dist/tesseract.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
-        .container { max-width: 680px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        h2, h3 { color: #333; text-align: center; }
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 15px; }
+        .container { max-width: 680px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        h2, h3 { color: #333; text-align: center; font-size: 1.2rem; }
         .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; font-size: 0.9rem; }
         input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-        button, .btn-camara { background-color: #007bff; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 4px; width: 100%; font-size: 16px; font-weight: bold; margin-top: 5px; text-align: center; display: block; text-decoration: none; box-sizing: border-box; }
+        button, .btn-camara { background-color: #007bff; color: white; border: none; padding: 12px; cursor: pointer; border-radius: 4px; width: 100%; font-size: 15px; font-weight: bold; margin-top: 5px; text-align: center; display: block; text-decoration: none; box-sizing: border-box; }
         button:hover, .btn-camara:hover { background-color: #0056b3; }
         .btn-danger { background-color: #dc3545; }
         .btn-success { background-color: #28a745; }
         .btn-secundario { background-color: #17a2b8; }
         .btn-warning { background-color: #ffc107; color: #333; }
-        .card { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
-        .alerta { background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; }
+        .card { background: #f8f9fa; border: 1px solid #ddd; padding: 12px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; }
+        .card-recibido { background: #e2f0d9; border-color: #c3e6cb; }
+        .card-inspeccion { border-left: 5px solid #ffc107; }
+        .alerta { background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; }
+        .dashboard-box { background: #e9ecef; border: 1px solid #ced4da; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; }
+        .dashboard-box h4 { margin: 0 0 8px 0; color: #007bff; font-size: 0.95rem; text-align: left; }
         .oculto { display: none; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        table, th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        .table-responsive { width: 100%; overflow-x: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 500px; }
+        table, th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         th { background-color: #007bff; color: white; }
     </style>
 </head>
@@ -57,15 +62,23 @@
         <p id="mensajeLogin" style="text-align:center; font-weight:bold; margin-top:15px;"></p>
     </div>
 
-    <!-- VISTA 2: SELECCIÓN DE ROL / MENÚ PRINCIPAL -->
+    <!-- VISTA 2: SELECCIÓN DE ROL / MENÚ PRINCIPAL CON INDICADORES -->
     <div id="seccionRol" class="oculto">
         <h2 id="saludoUsuario"></h2>
         <div id="avisoEmisor" class="alerta oculto"></div>
+        
+        <!-- Panel de Indicadores de Gestión -->
+        <div class="dashboard-box">
+            <h4>📊 Indicadores de Gestión GEDE</h4>
+            <div id="contenidoDashboard">Cargando indicadores...</div>
+        </div>
+
         <hr>
         <h3>Seleccioná tu modo de trabajo:</h3>
         <button onclick="elegirRol('emisor')" class="btn-success">📤 Ingresar como EMISOR</button>
         <button onclick="elegirRol('receptor')" style="margin-top: 15px;">📥 Ingresar como RECEPTOR</button>
         <button onclick="abrirModuloBusqueda()" class="btn-secundario" style="margin-top: 15px;">🔍 Buscar y Exportar Expedientes</button>
+        <button onclick="liberarRolEmisor()" class="btn-warning" style="margin-top: 15px;">🔓 Liberar / Quitar Estado de Emisor Activo</button>
         <button onclick="cerrarSesion()" class="btn-danger" style="margin-top: 30px;">🔒 Cerrar Sesión</button>
     </div>
 
@@ -73,7 +86,13 @@
     <div id="seccionReceptor" class="oculto">
         <h2>📥 Panel de Agente Receptor</h2>
         <p>Expedientes asignados a: <b id="nombreReceptorVisual"></b></p>
+        
+        <h3>Pendientes de Recepción</h3>
         <div id="listaExpedientesReceptor">Cargando expedientes...</div>
+        
+        <h3 style="margin-top: 25px;">Historial de Recibidos</h3>
+        <div id="listaExpedientesRecibidos">Cargando historial...</div>
+
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
     </div>
 
@@ -88,15 +107,13 @@
             <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="escanearCodigoNativo(this)">
         </div>
 
-        <!-- Carátula ampliada -->
         <div class="form-group">
             <label>Carátula (Extracto o Texto Completo):</label>
-            <textarea id="caratula" rows="8" placeholder="Texto extraído de la carátula (puedes editarlo libremente si el OCR detecta ruido)..."></textarea>
+            <textarea id="caratula" rows="8" placeholder="Texto extraído de la carátula..."></textarea>
             <label for="camaraOcr" class="btn-camara">📷 Extraer Carátula (OCR)</label>
             <input type="file" id="camaraOcr" accept="image/*" capture="environment" style="display:none;" onchange="procesarOcrCaratula(this)">
         </div>
 
-        <!-- Localidad movida debajo de carátula con opción de agregar -->
         <div class="form-group">
             <label>Localidad:</label>
             <select id="selectLocalidad" onchange="verificarOtraLocalidad(this)">
@@ -183,7 +200,7 @@
         <button onclick="exportarDatos('filtrado')" class="btn-success" style="margin-top: 10px;">📊 Exportar Filtrados (CSV/Excel)</button>
         <button onclick="exportarDatos('todo')" class="btn-warning" style="margin-top: 10px;">📂 Exportar Base Completa (CSV/Excel)</button>
         
-        <div id="resultadoBusquedaContainer" style="margin-top: 20px; overflow-x: auto;"></div>
+        <div id="resultadoBusquedaContainer" class="table-responsive" style="margin-top: 20px;"></div>
         
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
     </div>
@@ -264,7 +281,6 @@
                 await worker.terminate();
 
                 let textoCompleto = resultado.data.text;
-                // Dejamos el texto completo o con limpieza suave para que el usuario pueda visualizar toda la carátula con facilidad
                 let textoLimpio = textoCompleto.replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ.,\-\/]/gi, ' ').replace(/\s+/g, ' ').trim();
                 
                 document.getElementById("caratula").value = textoLimpio;
@@ -335,6 +351,9 @@
                 aviso.classList.add("oculto");
             }
 
+            // Calcular y mostrar indicadores de gestión en el menú
+            await calcularIndicadoresDashboard();
+
             document.getElementById("seccionLogin").classList.add("oculto");
             document.getElementById("seccionRol").classList.remove("oculto");
 
@@ -342,6 +361,55 @@
             msg.style.color = "red"; 
             msg.innerText = "❌ Error de conexión con Google Sheets.";
             console.error(e);
+        }
+    }
+
+    async function calcularIndicadoresDashboard() {
+        let contenedor = document.getElementById("contenidoDashboard");
+        contenedor.innerHTML = "Calculando métricas...";
+        try {
+            let respuesta = await fetch(URL_API + "?action=getMovimientos");
+            let filas = await respuesta.json();
+
+            let mapLocalidades = {};
+            let mapInspectores = {};
+            let totalInspeccionesPendientes = 0;
+
+            for (let i = 1; i < filas.length; i++) {
+                let f = filas[i];
+                let localidad = f.length > 3 && f[3] ? String(f[3]).trim() : "Sin Localidad";
+                let receptor = f.length > 4 && f[4] ? String(f[4]).trim() : "Sin Asignar";
+                let requiereInspeccion = f.length > 10 ? String(f[10]).trim() : ""; // Columna 10 para inspección
+                let estado = f.length > 9 ? String(f[9]).trim().toLowerCase() : "";
+
+                // Conteo Localidades
+                mapLocalidades[localidad] = (mapLocalidades[localidad] || 0) + 1;
+
+                // Conteo Asignaciones por Inspector
+                mapInspectores[receptor] = (mapInspectores[receptor] || 0) + 1;
+
+                // Conteo Inspecciones pendientes o marcadas
+                if (requiereInspeccion.toLowerCase() === "sí" && estado === "sin recibir") {
+                    totalInspeccionesPendientes++;
+                }
+            }
+
+            // Ordenar Localidades de mayor a menor
+            let locsOrdenadas = Object.entries(mapLocalidades).sort((a, b) => b[1] - a[1]).slice(0, 3);
+            let textoLocs = locsOrdenadas.map(item => `📍 <b>${item.first || item[0]}</b> (${item[1]} exp.)`).join("<br>");
+
+            // Texto Inspectores
+            let textoInspectores = Object.entries(mapInspectores).map(item => `👤 <b>${item[0]}</b>: ${item[1]} exp.`).join(" | ");
+
+            contenedor.innerHTML = `
+                <div>${textoLocs || "Sin datos de localidades"}</div>
+                <hr style="margin: 6px 0; border:0; border-top:1px solid #ccc;">
+                <div style="font-size: 0.8rem;"><b>Asignación por inspector:</b><br>${textoInspectores || "Sin datos"}</div>
+                <hr style="margin: 6px 0; border:0; border-top:1px solid #ccc;">
+                <div>⚠️ Expedientes pendientes que requieren inspección: <b>${totalInspeccionesPendientes}</b></div>
+            `;
+        } catch (e) {
+            contenedor.innerHTML = "<p style='color:red;'>No se pudieron cargar los indicadores.</p>";
         }
     }
 
@@ -357,9 +425,15 @@
         msg.style.color = "green"; msg.innerText = "✅ ¡Contraseña registrada con éxito!";
     }
 
+    async function liberarRolEmisor() {
+        await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "config", action: "updateEmisor", emisor: "" }) });
+        emisorActualGlobal = "";
+        document.getElementById("avisoEmisor").classList.add("oculto");
+        alert("¡Rol de emisor liberado con éxito! Ahora el próximo agente podrá ingresar sin alertas.");
+    }
+
     async function elegirRol(rol) {
         if (rol === "emisor") {
-            // Validación de emisor ya existente (Punto 4)
             if (emisorActualGlobal && emisorActualGlobal !== "" && emisorActualGlobal.toLowerCase() !== usuarioActual.toLowerCase()) {
                 let confirmar = confirm(`Ya existe un agente emisor activo (${emisorActualGlobal}), ¿está seguro de asumir este rol?`);
                 if (!confirmar) return;
@@ -403,7 +477,7 @@
         let fDesde = document.getElementById("filtroFechaDesde").value;
         let fHasta = document.getElementById("filtroFechaHasta").value;
 
-        let html = "<table><tr><th>Nro Exp</th><th>Localidad</th><th>Receptor</th><th>Carátula</th><th>Creación</th><th>Estado</th></tr>";
+        let html = "<table><tr><th>Nro Exp</th><th>Localidad</th><th>Receptor</th><th>Carátula</th><th>Creación</th><th>Estado</th><th>Inspección</th></tr>";
         let contador = 0;
 
         for (let i = 1; i < cacheMovimientos.length; i++) {
@@ -415,8 +489,8 @@
             let fechaCreacion = f.length > 6 ? String(f[6]) : "";
             let emisor = f.length > 8 ? String(f[8]) : "";
             let estado = f.length > 9 ? String(f[9]) : "";
+            let inspeccion = f.length > 10 ? String(f[10]) : "";
 
-            // Filtros
             if (fNro && !nroExp.toLowerCase().includes(fNro)) continue;
             if (fAgente && !receptor.toLowerCase().includes(fAgente) && !emisor.toLowerCase().includes(fAgente)) continue;
             if (fLoc && !localidad.toLowerCase().includes(fLoc)) continue;
@@ -426,12 +500,13 @@
 
             contador++;
             html += `<tr>
-                <td>${nroExp}</td>
+                <td><b>${nroExp}</b></td>
                 <td>${localidad}</td>
                 <td>${receptor}</td>
-                <td>${caratula}</td>
+                <td style="max-width: 150px; word-break: break-word;">${caratula}</td>
                 <td>${fechaCreacion}</td>
                 <td>${estado}</td>
+                <td>${inspeccion}</td>
             </tr>`;
         }
 
@@ -446,14 +521,13 @@
         }
 
         let filasExportar = [];
-        filasExportar.push(cacheMovimientos[0]); // Cabecera
+        filasExportar.push(cacheMovimientos[0]);
 
         if (tipo === "todo") {
             for (let i = 1; i < cacheMovimientos.length; i++) {
                 filasExportar.push(cacheMovimientos[i]);
             }
         } else {
-            // Filtrados según los campos actuales
             let fNro = document.getElementById("filtroNro").value.toLowerCase();
             let fAgente = document.getElementById("filtroAgente").value.toLowerCase();
             let fLoc = document.getElementById("filtroLocalidad").value.toLowerCase();
@@ -481,8 +555,7 @@
             }
         }
 
-        // Convertir a CSV compatible con Excel (separado por punto y coma ;)
-        let csvContent = "\uFEFF"; // BOM para acentos en Excel
+        let csvContent = "\uFEFF";
         filasExportar.forEach(fila => {
             let filaStr = fila.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";");
             csvContent += filaStr + "\r\n";
@@ -505,6 +578,7 @@
         document.getElementById("seccionReceptor").classList.add("oculto");
         document.getElementById("seccionBusqueda").classList.add("oculto");
         document.getElementById("seccionRol").classList.remove("oculto");
+        await calcularIndicadoresDashboard();
     }
 
     async function cerrarSesion() {
@@ -528,7 +602,7 @@
         if(!nro) { msg.style.color = "red"; msg.innerText = "⚠️ El número de expediente es obligatorio."; return; }
         if(!loc) { msg.style.color = "red"; msg.innerText = "⚠️ Debe seleccionar o ingresar una localidad."; return; }
 
-        let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "", ""];
+        let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "No", ""];
 
         msg.style.color = "#333"; msg.innerText = "Guardando...";
         await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "append", valores: nuevaFila }) });
@@ -542,14 +616,19 @@
     }
 
     async function cargarExpedientesReceptor() {
-        const contenedor = document.getElementById("listaExpedientesReceptor");
-        contenedor.innerHTML = "Buscando expedientes...";
+        const contenedorPendientes = document.getElementById("listaExpedientesReceptor");
+        const contenedorRecibidos = document.getElementById("listaExpedientesRecibidos");
+        
+        contenedorPendientes.innerHTML = "Buscando pendientes...";
+        contenedorRecibidos.innerHTML = "Buscando historial...";
 
         let respuesta = await fetch(URL_API + "?action=getMovimientos");
         let filas = await respuesta.json();
 
-        let html = "";
-        let encontrados = false;
+        let htmlPendientes = "";
+        let htmlRecibidos = "";
+        let hayPendientes = false;
+        let hayRecibidos = false;
 
         for (let i = 1; i < filas.length; i++) {
             let f = filas[i];
@@ -561,31 +640,50 @@
             let fechaCreacion = f.length > 6 ? f[6] : "";
             let fechaEntrega = f.length > 7 ? f[7] : "";
             let estado = f.length > 9 ? String(f[9]).trim().toLowerCase() : "";
+            let requiereInspeccion = f.length > 10 ? f[10] : "No";
 
-            if (agenteReceptor === usuarioActual.toLowerCase() && estado === "sin recibir") {
-                encontrados = true;
-                html += `
-                    <div class="card">
-                        <b>Nro Exp:</b> ${nroExp} <br>
-                        <b>Localidad:</b> ${localidad} <br>
-                        <b>Carátula:</b> ${caratula} <br>
-                        <b>Fecha Creación:</b> ${fechaCreacion} <br>
-                        <b>Fecha Entrega:</b> ${fechaEntrega} <br><br>
-                        <button onclick="marcarRecibido('${id}')" class="btn-success">📥 Marcar Recibido</button>
-                    </div>
-                `;
+            if (agenteReceptor === usuarioActual.toLowerCase()) {
+                if (estado === "sin recibir") {
+                    hayPendientes = true;
+                    htmlPendientes += `
+                        <div class="card">
+                            <b>Nro Exp:</b> ${nroExp} <br>
+                            <b>Localidad:</b> ${localidad} <br>
+                            <b>Carátula:</b> ${caratula} <br>
+                            <b>Fecha Creación:</b> ${fechaCreacion} <br>
+                            <b>Fecha Entrega:</b> ${fechaEntrega} <br><br>
+                            <label style="font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                                <input type="checkbox" id="chkInspeccion_${id}" style="width: 18px; height: 18px;">
+                                ⚠️ <b>Requiere seguimiento de inspección</b>
+                            </label>
+                            <button onclick="marcarRecibido('${id}')" class="btn-success">📥 Marcar Recibido</button>
+                        </div>
+                    `;
+                } else {
+                    hayRecibidos = true;
+                    let claseInspeccion = requiereInspeccion === "Sí" ? "card-recibido card-inspeccion" : "card-recibido";
+                    let textoInspeccion = requiereInspeccion === "Sí" ? "Sí ⚠️" : "No";
+                    htmlRecibidos += `
+                        <div class="card ${claseInspeccion}">
+                            <b>Nro Exp:</b> ${nroExp} <br>
+                            <b>Localidad:</b> ${localidad} <br>
+                            <b>Carátula:</b> ${caratula} <br>
+                            <b>Estado:</b> Recibido ✅ | <b>Requiere Inspección:</b> ${textoInspeccion}
+                        </div>
+                    `;
+                }
             }
         }
 
-        if (!encontrados) {
-            contenedor.innerHTML = "<p>🎉 ¡No tenés expedientes pendientes de recepción!</p>";
-        } else {
-            contenedor.innerHTML = html;
-        }
+        contenedorPendientes.innerHTML = hayPendientes ? htmlPendientes : "<p>🎉 ¡No tenés expedientes pendientes!</p>";
+        contenedorRecibidos.innerHTML = hayRecibidos ? htmlRecibidos : "<p><i>No hay expedientes recibidos en el historial.</i></p>";
     }
 
     async function marcarRecibido(idExp) {
-        await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "marcarRecibido", id: idExp }) });
+        let chk = document.getElementById(`chkInspeccion_${idExp}`);
+        let requiereInspeccion = (chk && chk.checked) ? "Sí" : "No";
+
+        await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "marcarRecibido", id: idExp, inspeccion: requiereInspeccion }) });
         alert("¡Expediente marcado como recibido!");
         cargarExpedientesReceptor();
     }
