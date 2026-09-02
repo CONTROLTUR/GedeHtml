@@ -1,3 +1,4 @@
+    const URL_API = "https://script.google.com/macros/s/AKfycbyP1dr0fGe9oqHsLL0vDtuoDFF5Zkncn7I931PRUVR3-ffCWFLMrOeQ7bdz3n54nc3Etw/exec";
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -22,13 +23,10 @@
         .card { background: #f8f9fa; border: 1px solid #ddd; padding: 12px; border-radius: 6px; margin-bottom: 12px; font-size: 0.9rem; }
         .card-recibido { background: #e2f0d9; border-color: #c3e6cb; }
         .card-inspeccion { border-left: 5px solid #ffc107; }
-        
-        /* Estilo para las fichas horizontales de búsqueda (Punto 2) */
         .card-busqueda { background: #fff; border: 1px solid #bbb; border-radius: 6px; padding: 10px 12px; margin-bottom: 10px; font-size: 0.85rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .fila-ficha { display: flex; justify-content: space-between; margin-bottom: 4px; }
         .fila-ficha span { flex: 1; }
         .fila-ficha span:nth-child(2) { text-align: right; }
-
         .alerta { background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem; }
         .dashboard-box { background: #e9ecef; border: 1px solid #ced4da; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; }
         .dashboard-box h4 { margin: 0 0 8px 0; color: #007bff; font-size: 0.95rem; text-align: left; }
@@ -101,7 +99,6 @@
     <div id="seccionEmisor" class="oculto">
         <h2>📤 Panel de Agente Emisor</h2>
         
-        <!-- Botón para desloguearse/liberar rol de emisor aquí (Punto 5) -->
         <button onclick="liberarRolEmisor()" class="btn-warning" style="margin-bottom: 15px;">🔓 Salir del modo Emisor (Liberar Estado)</button>
 
         <div class="form-group">
@@ -204,7 +201,6 @@
         <button onclick="exportarDatos('filtrado')" class="btn-success" style="margin-top: 10px;">📊 Exportar Filtrados (CSV/Excel)</button>
         <button onclick="exportarDatos('todo')" class="btn-warning" style="margin-top: 10px;">📂 Exportar Base Completa (CSV/Excel)</button>
         
-        <!-- Contenedor con formato ficha horizontal (Punto 2) -->
         <div id="resultadoBusquedaContainer" style="margin-top: 20px;"></div>
         
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
@@ -218,10 +214,8 @@
     let emisorActualGlobal = "";
     let cacheMovimientos = [];
 
-    // Función auxiliar para formatear fechas de tipo ISO o largas a DD/MM/AAAA (Punto 3)
     function formatearFecha(fechaStr) {
         if (!fechaStr) return "-";
-        // Si viene con formato yyyy-mm-dd o similar
         let soloFecha = String(fechaStr).split('T')[0];
         let partes = soloFecha.split('-');
         if (partes.length === 3) {
@@ -478,7 +472,6 @@
         }
     }
 
-    // Búsqueda con formato horizontal y fichas prolijas (Puntos 2, 3 y 4)
     function ejecutarBusqueda() {
         let fNro = document.getElementById("filtroNro").value.toLowerCase();
         let fAgente = document.getElementById("filtroAgente").value.toLowerCase();
@@ -621,7 +614,6 @@
         if(!nro) { msg.style.color = "red"; msg.innerText = "⚠️ El número de expediente es obligatorio."; return; }
         if(!loc) { msg.style.color = "red"; msg.innerText = "⚠️ Debe seleccionar o ingresar una localidad."; return; }
 
-        // Estructura: ID, Nro, General, Localidad, Receptor, Caratula, Creacion, Entrega, Emisor, Estado, Inspeccion, FechaRecepcion
         let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "No", ""];
 
         msg.style.color = "#333"; msg.innerText = "Guardando...";
