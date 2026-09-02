@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+
+    const URL_API = "";
+
+   <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -8,7 +11,7 @@
     <script src="https://unpkg.com/tesseract.js@v5.1.0/dist/tesseract.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
-        .container { max-width: 650px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .container { max-width: 680px; margin: auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
         h2, h3 { color: #333; text-align: center; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
@@ -18,9 +21,13 @@
         .btn-danger { background-color: #dc3545; }
         .btn-success { background-color: #28a745; }
         .btn-secundario { background-color: #17a2b8; }
+        .btn-warning { background-color: #ffc107; color: #333; }
         .card { background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 6px; margin-bottom: 15px; }
         .alerta { background: #fff3cd; color: #856404; padding: 10px; border: 1px solid #ffeeba; border-radius: 4px; margin-bottom: 15px; }
         .oculto { display: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        table, th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #007bff; color: white; }
     </style>
 </head>
 <body>
@@ -53,7 +60,7 @@
         <p id="mensajeLogin" style="text-align:center; font-weight:bold; margin-top:15px;"></p>
     </div>
 
-    <!-- VISTA 2: SELECCIÓN DE ROL -->
+    <!-- VISTA 2: SELECCIÓN DE ROL / MENÚ PRINCIPAL -->
     <div id="seccionRol" class="oculto">
         <h2 id="saludoUsuario"></h2>
         <div id="avisoEmisor" class="alerta oculto"></div>
@@ -61,6 +68,7 @@
         <h3>Seleccioná tu modo de trabajo:</h3>
         <button onclick="elegirRol('emisor')" class="btn-success">📤 Ingresar como EMISOR</button>
         <button onclick="elegirRol('receptor')" style="margin-top: 15px;">📥 Ingresar como RECEPTOR</button>
+        <button onclick="abrirModuloBusqueda()" class="btn-secundario" style="margin-top: 15px;">🔍 Buscar y Exportar Expedientes</button>
         <button onclick="cerrarSesion()" class="btn-danger" style="margin-top: 30px;">🔒 Cerrar Sesión</button>
     </div>
 
@@ -76,7 +84,6 @@
     <div id="seccionEmisor" class="oculto">
         <h2>📤 Panel de Agente Emisor</h2>
         
-        <!-- Módulo 1: Código de Barras Nativo -->
         <div class="form-group">
             <label>Número de Expediente:</label>
             <input type="text" id="nroExp" placeholder="Ej: 0060016-193687/2025-1">
@@ -84,9 +91,37 @@
             <input type="file" id="camaraBarra" accept="image/*" capture="environment" style="display:none;" onchange="escanearCodigoNativo(this)">
         </div>
 
+        <!-- Carátula ampliada -->
+        <div class="form-group">
+            <label>Carátula (Extracto o Texto Completo):</label>
+            <textarea id="caratula" rows="8" placeholder="Texto extraído de la carátula (puedes editarlo libremente si el OCR detecta ruido)..."></textarea>
+            <label for="camaraOcr" class="btn-camara">📷 Extraer Carátula (OCR)</label>
+            <input type="file" id="camaraOcr" accept="image/*" capture="environment" style="display:none;" onchange="procesarOcrCaratula(this)">
+        </div>
+
+        <!-- Localidad movida debajo de carátula con opción de agregar -->
         <div class="form-group">
             <label>Localidad:</label>
-            <input type="text" id="localidad" placeholder="Ej: Salta">
+            <select id="selectLocalidad" onchange="verificarOtraLocalidad(this)">
+                <option value="">Seleccioná una localidad...</option>
+                <option value="Cachi">Cachi</option>
+                <option value="Cafayate">Cafayate</option>
+                <option value="Chicoana">Chicoana</option>
+                <option value="Cnel. Moldes">Cnel. Moldes</option>
+                <option value="El Carril">El Carril</option>
+                <option value="Iruya">Iruya</option>
+                <option value="La Caldera">La Caldera</option>
+                <option value="La Calderilla">La Calderilla</option>
+                <option value="Molinos">Molinos</option>
+                <option value="Rosario de la Frontera">Rosario de la Frontera</option>
+                <option value="Salta Capital">Salta Capital</option>
+                <option value="San Antonio de los Cobres">San Antonio de los Cobres</option>
+                <option value="San Carlos">San Carlos</option>
+                <option value="San Lorenzo">San Lorenzo</option>
+                <option value="Vaqueros">Vaqueros</option>
+                <option value="OTRA">➕ Agregar otra localidad...</option>
+            </select>
+            <input type="text" id="otraLocalidadInput" class="oculto" placeholder="Escribí la nueva localidad..." style="margin-top: 5px;">
         </div>
 
         <div class="form-group">
@@ -104,14 +139,6 @@
             </select>
         </div>
 
-        <!-- Módulo 2: Carátula OCR (Entre líneas / Extracto) -->
-        <div class="form-group">
-            <label>Carátula (Extracto entre líneas):</label>
-            <textarea id="caratula" rows="4" placeholder="Texto extraído de la carátula..."></textarea>
-            <label for="camaraOcr" class="btn-camara">📷 Extraer Carátula (OCR)</label>
-            <input type="file" id="camaraOcr" accept="image/*" capture="environment" style="display:none;" onchange="procesarOcrCaratula(this)">
-        </div>
-
         <div class="form-group">
             <label>📅 Fecha de Creación:</label>
             <input type="date" id="fechaCreacionExp">
@@ -126,14 +153,51 @@
         <p id="mensajeEmisor" style="text-align:center; font-weight:bold; margin-top:10px;"></p>
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
     </div>
+
+    <!-- VISTA 5: BUSCADOR Y EXPORTADOR -->
+    <div id="seccionBusqueda" class="oculto">
+        <h2>🔍 Búsqueda y Exportación de Expedientes</h2>
+        <div class="form-group">
+            <label>Nro Expediente (Parcial/Total):</label>
+            <input type="text" id="filtroNro" placeholder="Ej: 193687">
+        </div>
+        <div class="form-group">
+            <label>Agente (Receptor o Emisor):</label>
+            <input type="text" id="filtroAgente" placeholder="Ej: Maxi">
+        </div>
+        <div class="form-group">
+            <label>Localidad:</label>
+            <input type="text" id="filtroLocalidad" placeholder="Ej: Salta">
+        </div>
+        <div class="form-group">
+            <label>Texto en Carátula:</label>
+            <input type="text" id="filtroCaratulaText" placeholder="Palabra clave...">
+        </div>
+        <div class="form-group">
+            <label>Desde Fecha:</label>
+            <input type="date" id="filtroFechaDesde">
+        </div>
+        <div class="form-group">
+            <label>Hasta Fecha:</label>
+            <input type="date" id="filtroFechaHasta">
+        </div>
+        
+        <button onclick="ejecutarBusqueda()" class="btn-secundario">🔎 Filtrar Resultados</button>
+        <button onclick="exportarDatos('filtrado')" class="btn-success" style="margin-top: 10px;">📊 Exportar Filtrados (CSV/Excel)</button>
+        <button onclick="exportarDatos('todo')" class="btn-warning" style="margin-top: 10px;">📂 Exportar Base Completa (CSV/Excel)</button>
+        
+        <div id="resultadoBusquedaContainer" style="margin-top: 20px; overflow-x: auto;"></div>
+        
+        <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
+    </div>
 </div>
 
 <script>
-    // PEGA AQUÍ TU URL DE APLICACIÓN WEB DE APPS SCRIPT (la que termina en /exec)
     const URL_API = "https://script.google.com/macros/s/AKfycbyP1dr0fGe9oqHsLL0vDtuoDFF5Zkncn7I931PRUVR3-ffCWFLMrOeQ7bdz3n54nc3Etw/exec";
 
     let usuarioActual = "";
     let emisorActualGlobal = "";
+    let cacheMovimientos = [];
 
     function establecerFechasPorDefecto() {
         let hoy = new Date().toISOString().split('T')[0];
@@ -141,7 +205,25 @@
         document.getElementById("fechaEntregaExp").value = hoy;
     }
 
-    // 1. Lector de código de barras
+    function verificarOtraLocalidad(select) {
+        let inputOtra = document.getElementById("otraLocalidadInput");
+        if (select.value === "OTRA") {
+            inputOtra.classList.remove("oculto");
+            inputOtra.value = "";
+            inputOtra.focus();
+        } else {
+            inputOtra.classList.add("oculto");
+        }
+    }
+
+    function obtenerLocalidadSeleccionada() {
+        let select = document.getElementById("selectLocalidad");
+        if (select.value === "OTRA") {
+            return document.getElementById("otraLocalidadInput").value.trim();
+        }
+        return select.value;
+    }
+
     async function escanearCodigoNativo(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
@@ -160,7 +242,7 @@
                 if (resultados.length > 0) {
                     document.getElementById("nroExp").value = resultados[0].rawValue;
                     msgEmisor.style.color = "green";
-                    msgEmisor.innerText = "✅ ¡Código de barras detectado con éxito!";
+                    msgEmisor.innerText = "✅ ¡Código detectado!";
                 } else {
                     msgEmisor.style.color = "orange";
                     msgEmisor.innerText = "⚠️ No se detectó código. Acercá más la cámara.";
@@ -172,13 +254,12 @@
         }
     }
 
-    // 2. Módulo OCR optimizado para extraer el texto entre líneas de la carátula
     async function procesarOcrCaratula(input) {
         if (input.files && input.files[0]) {
             let archivo = input.files[0];
             let msgEmisor = document.getElementById("mensajeEmisor");
             msgEmisor.style.color = "#007bff";
-            msgEmisor.innerText = "⏳ Extrayendo carátula (OCR)...";
+            msgEmisor.innerText = "⏳ Extrayendo texto completo de la carátula...";
 
             try {
                 let worker = await Tesseract.createWorker('spa');
@@ -186,37 +267,12 @@
                 await worker.terminate();
 
                 let textoCompleto = resultado.data.text;
-                let lineas = textoCompleto.split('\n');
-                let textoCaratula = "";
-                let capturando = false;
-
-                for (let i = 0; i < lineas.length; i++) {
-                    let lineaActual = lineas[i].trim();
-                    let lineaUpper = lineaActual.toUpperCase();
-
-                    if (lineaUpper.includes("CARATULA") || lineaUpper.includes("EXTRACTO") || lineaUpper.includes("REF:")) {
-                        capturando = true;
-                        continue;
-                    }
-
-                    if (capturando && (lineaUpper.includes("SICE") || lineaUpper.includes("IMPR") || lineaUpper.includes("COD.") || lineaUpper.includes("USR.") || lineaUpper.includes("FECHA"))) {
-                        break;
-                    }
-
-                    if (capturando && lineaActual !== "") {
-                        textoCaratula += lineaActual + " ";
-                    }
-                }
-
-                if (!textoCaratula.trim()) {
-                    textoCaratula = textoCompleto;
-                }
-
-                let textoLimpio = textoCaratula.replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ.,\-\/]/gi, ' ').replace(/\s+/g, ' ').trim();
+                // Dejamos el texto completo o con limpieza suave para que el usuario pueda visualizar toda la carátula con facilidad
+                let textoLimpio = textoCompleto.replace(/[^\w\sáéíóúÁÉÍÓÚñÑüÜ.,\-\/]/gi, ' ').replace(/\s+/g, ' ').trim();
+                
                 document.getElementById("caratula").value = textoLimpio;
-
                 msgEmisor.style.color = "green";
-                msgEmisor.innerText = "✅ ¡Carátula extraída correctamente!";
+                msgEmisor.innerText = "✅ ¡Texto extraído! Revisalo en el recuadro ampliado.";
 
             } catch (error) {
                 msgEmisor.style.color = "red";
@@ -251,7 +307,6 @@
                 let p = String(usuariosRows[i][1]).trim();
                 if (u.toLowerCase() === agente.toLowerCase()) {
                     encontrado = true;
-                    // Comparamos convirtiendo a string por si la contraseña en sheets es numérica pura
                     if (String(p) === String(pass)) passCorrecta = true;
                     break;
                 }
@@ -273,7 +328,7 @@
             let aviso = document.getElementById("avisoEmisor");
             if(emisorActualGlobal && emisorActualGlobal !== "") {
                 if(emisorActualGlobal.toLowerCase() !== usuarioActual.toLowerCase()) {
-                    aviso.innerText = `⚠️ Aviso: El agente ${emisorActualGlobal} está como Emisor.`;
+                    aviso.innerText = `⚠️ Aviso: El agente ${emisorActualGlobal} está configurado como Emisor actual.`;
                     aviso.classList.remove("oculto");
                 } else {
                     aviso.innerText = `ℹ️ Estás registrado como el Emisor activo.`;
@@ -307,6 +362,12 @@
 
     async function elegirRol(rol) {
         if (rol === "emisor") {
+            // Validación de emisor ya existente (Punto 4)
+            if (emisorActualGlobal && emisorActualGlobal !== "" && emisorActualGlobal.toLowerCase() !== usuarioActual.toLowerCase()) {
+                let confirmar = confirm(`Ya existe un agente emisor activo (${emisorActualGlobal}), ¿está seguro de asumir este rol?`);
+                if (!confirmar) return;
+            }
+
             await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "config", action: "updateEmisor", emisor: usuarioActual }) });
             document.getElementById("seccionRol").classList.add("oculto");
             document.getElementById("seccionEmisor").classList.remove("oculto");
@@ -319,11 +380,133 @@
         }
     }
 
+    async function abrirModuloBusqueda() {
+        document.getElementById("seccionRol").classList.add("oculto");
+        document.getElementById("seccionBusqueda").classList.remove("oculto");
+        await precargarMovimientos();
+    }
+
+    async function precargarMovimientos() {
+        let contenedor = document.getElementById("resultadoBusquedaContainer");
+        contenedor.innerHTML = "Cargando datos para búsqueda...";
+        try {
+            let respuesta = await fetch(URL_API + "?action=getMovimientos");
+            cacheMovimientos = await respuesta.json();
+            contenedor.innerHTML = "<p><i>Datos cargados. Ingrese filtros y presione 'Filtrar Resultados'.</i></p>";
+        } catch (e) {
+            contenedor.innerHTML = "<p style='color:red;'>Error al cargar los movimientos.</p>";
+        }
+    }
+
+    function ejecutarBusqueda() {
+        let fNro = document.getElementById("filtroNro").value.toLowerCase();
+        let fAgente = document.getElementById("filtroAgente").value.toLowerCase();
+        let fLoc = document.getElementById("filtroLocalidad").value.toLowerCase();
+        let fCaratula = document.getElementById("filtroCaratulaText").value.toLowerCase();
+        let fDesde = document.getElementById("filtroFechaDesde").value;
+        let fHasta = document.getElementById("filtroFechaHasta").value;
+
+        let html = "<table><tr><th>Nro Exp</th><th>Localidad</th><th>Receptor</th><th>Carátula</th><th>Creación</th><th>Estado</th></tr>";
+        let contador = 0;
+
+        for (let i = 1; i < cacheMovimientos.length; i++) {
+            let f = cacheMovimientos[i];
+            let nroExp = f.length > 1 ? String(f[1]) : "";
+            let localidad = f.length > 3 ? String(f[3]) : "";
+            let receptor = f.length > 4 ? String(f[4]) : "";
+            let caratula = f.length > 5 ? String(f[5]) : "";
+            let fechaCreacion = f.length > 6 ? String(f[6]) : "";
+            let emisor = f.length > 8 ? String(f[8]) : "";
+            let estado = f.length > 9 ? String(f[9]) : "";
+
+            // Filtros
+            if (fNro && !nroExp.toLowerCase().includes(fNro)) continue;
+            if (fAgente && !receptor.toLowerCase().includes(fAgente) && !emisor.toLowerCase().includes(fAgente)) continue;
+            if (fLoc && !localidad.toLowerCase().includes(fLoc)) continue;
+            if (fCaratula && !caratula.toLowerCase().includes(fCaratula)) continue;
+            if (fDesde && fechaCreacion < fDesde) continue;
+            if (fHasta && fechaCreacion > fHasta) continue;
+
+            contador++;
+            html += `<tr>
+                <td>${nroExp}</td>
+                <td>${localidad}</td>
+                <td>${receptor}</td>
+                <td>${caratula}</td>
+                <td>${fechaCreacion}</td>
+                <td>${estado}</td>
+            </tr>`;
+        }
+
+        html += "</table>";
+        document.getElementById("resultadoBusquedaContainer").innerHTML = `<b>Se encontraron ${contador} registros:</b>` + html;
+    }
+
+    function exportarDatos(tipo) {
+        if (!cacheMovimientos || cacheMovimientos.length === 0) {
+            alert("No hay datos cargados para exportar.");
+            return;
+        }
+
+        let filasExportar = [];
+        filasExportar.push(cacheMovimientos[0]); // Cabecera
+
+        if (tipo === "todo") {
+            for (let i = 1; i < cacheMovimientos.length; i++) {
+                filasExportar.push(cacheMovimientos[i]);
+            }
+        } else {
+            // Filtrados según los campos actuales
+            let fNro = document.getElementById("filtroNro").value.toLowerCase();
+            let fAgente = document.getElementById("filtroAgente").value.toLowerCase();
+            let fLoc = document.getElementById("filtroLocalidad").value.toLowerCase();
+            let fCaratula = document.getElementById("filtroCaratulaText").value.toLowerCase();
+            let fDesde = document.getElementById("filtroFechaDesde").value;
+            let fHasta = document.getElementById("filtroFechaHasta").value;
+
+            for (let i = 1; i < cacheMovimientos.length; i++) {
+                let f = cacheMovimientos[i];
+                let nroExp = f.length > 1 ? String(f[1]) : "";
+                let localidad = f.length > 3 ? String(f[3]) : "";
+                let receptor = f.length > 4 ? String(f[4]) : "";
+                let caratula = f.length > 5 ? String(f[5]) : "";
+                let fechaCreacion = f.length > 6 ? String(f[6]) : "";
+                let emisor = f.length > 8 ? String(f[8]) : "";
+
+                if (fNro && !nroExp.toLowerCase().includes(fNro)) continue;
+                if (fAgente && !receptor.toLowerCase().includes(fAgente) && !emisor.toLowerCase().includes(fAgente)) continue;
+                if (fLoc && !localidad.toLowerCase().includes(fLoc)) continue;
+                if (fCaratula && !caratula.toLowerCase().includes(fCaratula)) continue;
+                if (fDesde && fechaCreacion < fDesde) continue;
+                if (fHasta && fechaCreacion > fHasta) continue;
+
+                filasExportar.push(f);
+            }
+        }
+
+        // Convertir a CSV compatible con Excel (separado por punto y coma ;)
+        let csvContent = "\uFEFF"; // BOM para acentos en Excel
+        filasExportar.forEach(fila => {
+            let filaStr = fila.map(val => `"${String(val).replace(/"/g, '""')}"`).join(";");
+            csvContent += filaStr + "\r\n";
+        });
+
+        let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        let url = URL.createObjectURL(blob);
+        let link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `Expedientes_GEDE_${tipo}_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     async function volverMenuRoles() {
         await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "config", action: "updateEmisor", emisor: "" }) });
         
         document.getElementById("seccionEmisor").classList.add("oculto");
         document.getElementById("seccionReceptor").classList.add("oculto");
+        document.getElementById("seccionBusqueda").classList.add("oculto");
         document.getElementById("seccionRol").classList.remove("oculto");
     }
 
@@ -338,7 +521,7 @@
 
     async function guardarExpediente() {
         const nro = document.getElementById("nroExp").value;
-        const loc = document.getElementById("localidad").value;
+        const loc = obtenerLocalidadSeleccionada();
         const receptor = document.getElementById("agenteReceptorAsignado").value;
         const caratula = document.getElementById("caratula").value;
         const fechaCreacion = document.getElementById("fechaCreacionExp").value;
@@ -346,6 +529,7 @@
         const msg = document.getElementById("mensajeEmisor");
 
         if(!nro) { msg.style.color = "red"; msg.innerText = "⚠️ El número de expediente es obligatorio."; return; }
+        if(!loc) { msg.style.color = "red"; msg.innerText = "⚠️ Debe seleccionar o ingresar una localidad."; return; }
 
         let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "", ""];
 
@@ -355,6 +539,8 @@
         msg.style.color = "green"; msg.innerText = "✅ ¡Expediente guardado con éxito!";
         document.getElementById("nroExp").value = "";
         document.getElementById("caratula").value = "";
+        document.getElementById("selectLocalidad").value = "";
+        document.getElementById("otraLocalidadInput").classList.add("oculto");
         establecerFechasPorDefecto();
     }
 
