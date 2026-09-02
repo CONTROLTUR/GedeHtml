@@ -76,7 +76,8 @@
         <h3>Seleccioná tu modo de trabajo:</h3>
         <button onclick="elegirRol('emisor')" class="btn-success">📤 Ingresar como EMISOR</button>
         <button onclick="elegirRol('receptor')" style="margin-top: 15px;">📥 Ingresar como RECEPTOR</button>
-        <button onclick="abrirModuloBusqueda()" class="btn-secundario" style="margin-top: 15px;">🔍 Buscar y Exportar Expedientes</button>
+        <button onclick="abrirModuloBusqueda()" class="btn-secundario" style="margin-top: 15px;">🔍 Buscar, Filtrar y Gestionar Expedientes</button>
+        <button onclick="abrirModuloHistorial()" class="btn-warning" style="margin-top: 15px; color: #333;">📋 Ver Todos los Movimientos (Historial Completo)</button>
         <button onclick="cerrarSesion()" class="btn-danger" style="margin-top: 30px;">🔒 Cerrar Sesión</button>
     </div>
 
@@ -94,11 +95,12 @@
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
     </div>
 
-    <!-- VISTA 4: EMISOR -->
+    <!-- VISTA 4: EMISOR (CARGA Y EDICIÓN) -->
     <div id="seccionEmisor" class="oculto">
-        <h2>📤 Panel de Agente Emisor</h2>
+        <h2 id="tituloPanelEmisor">📤 Panel de Agente Emisor</h2>
         
         <button onclick="liberarRolEmisor()" class="btn-warning" style="margin-bottom: 15px;">🔓 Salir del modo Emisor (Liberar Estado)</button>
+        <input type="hidden" id="editandoId" value="">
 
         <div class="form-group">
             <label>Número de Expediente:</label>
@@ -163,25 +165,54 @@
             <input type="date" id="fechaEntregaExp">
         </div>
 
-        <button onclick="guardarExpediente()" class="btn-success">💾 Guardar y Enviar Expediente</button>
+        <button id="btnGuardarEmisor" onclick="guardarExpediente()" class="btn-success">💾 Guardar y Enviar Expediente</button>
+        <button id="btnCancelarEdicion" onclick="cancelarEdicionEmisor()" class="btn-danger oculto" style="margin-top: 5px;">❌ Cancelar Edición</button>
         <p id="mensajeEmisor" style="text-align:center; font-weight:bold; margin-top:10px;"></p>
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
     </div>
 
-    <!-- VISTA 5: BUSCADOR Y EXPORTADOR -->
+    <!-- VISTA 5: BUSCADOR Y GESTOR -->
     <div id="seccionBusqueda" class="oculto">
-        <h2>🔍 Búsqueda y Exportación de Expedientes</h2>
+        <h2>🔍 Búsqueda y Gestión de Expedientes</h2>
         <div class="form-group">
             <label>Nro Expediente (Parcial/Total):</label>
             <input type="text" id="filtroNro" placeholder="Ej: 193687">
         </div>
         <div class="form-group">
             <label>Agente (Receptor o Emisor):</label>
-            <input type="text" id="filtroAgente" placeholder="Ej: Maxi">
+            <select id="filtroAgente">
+                <option value="">Todos los agentes...</option>
+                <option value="Maxi">Maxi</option>
+                <option value="Ceci">Ceci</option>
+                <option value="Sofi">Sofi</option>
+                <option value="Lore">Lore</option>
+                <option value="Marce">Marce</option>
+                <option value="Pao">Pao</option>
+                <option value="Diego">Diego</option>
+                <option value="Carlos">Carlos</option>
+                <option value="Javi">Javi</option>
+            </select>
         </div>
         <div class="form-group">
             <label>Localidad:</label>
-            <input type="text" id="filtroLocalidad" placeholder="Ej: Salta">
+            <select id="filtroLocalidad">
+                <option value="">Todas las localidades...</option>
+                <option value="Cachi">Cachi</option>
+                <option value="Cafayate">Cafayate</option>
+                <option value="Chicoana">Chicoana</option>
+                <option value="Cnel. Moldes">Cnel. Moldes</option>
+                <option value="El Carril">El Carril</option>
+                <option value="Iruya">Iruya</option>
+                <option value="La Caldera">La Caldera</option>
+                <option value="La Calderilla">La Calderilla</option>
+                <option value="Molinos">Molinos</option>
+                <option value="Rosario de la Frontera">Rosario de la Frontera</option>
+                <option value="Salta Capital">Salta Capital</option>
+                <option value="San Antonio de los Cobres">San Antonio de los Cobres</option>
+                <option value="San Carlos">San Carlos</option>
+                <option value="San Lorenzo">San Lorenzo</option>
+                <option value="Vaqueros">Vaqueros</option>
+            </select>
         </div>
         <div class="form-group">
             <label>Texto en Carátula:</label>
@@ -202,6 +233,14 @@
         
         <div id="resultadoBusquedaContainer" style="margin-top: 20px;"></div>
         
+        <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
+    </div>
+
+    <!-- VISTA 6: HISTORIAL COMPLETO DE MOVIMIENTOS -->
+    <div id="seccionHistorial" class="oculto">
+        <h2>📋 Historial Completo de Movimientos</h2>
+        <p style="text-align: center; font-size: 0.85rem; color: #666;">Todos los registros del sistema (Emisores y Receptores)</p>
+        <div id="contenedorHistorialGeneral" style="margin-top: 15px;">Cargando historial...</div>
         <button onclick="volverMenuRoles()" style="background-color: #6c757d; margin-top: 20px;">⬅️ Volver al Menú Principal</button>
     </div>
 </div>
@@ -444,7 +483,7 @@
             await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "config", action: "updateEmisor", emisor: usuarioActual }) });
             document.getElementById("seccionRol").classList.add("oculto");
             document.getElementById("seccionEmisor").classList.remove("oculto");
-            establecerFechasPorDefecto();
+            cancelarEdicionEmisor(); // Modo alta limpia
         } else {
             document.getElementById("seccionRol").classList.add("oculto");
             document.getElementById("seccionReceptor").classList.remove("oculto");
@@ -459,6 +498,12 @@
         await precargarMovimientos();
     }
 
+    async function abrirModuloHistorial() {
+        document.getElementById("seccionRol").classList.add("oculto");
+        document.getElementById("seccionHistorial").classList.remove("oculto");
+        await cargarHistorialGeneral();
+    }
+
     async function precargarMovimientos() {
         let contenedor = document.getElementById("resultadoBusquedaContainer");
         contenedor.innerHTML = "Cargando datos para búsqueda...";
@@ -468,6 +513,44 @@
             contenedor.innerHTML = "<p><i>Datos cargados. Ingrese filtros y presione 'Filtrar Resultados'.</i></p>";
         } catch (e) {
             contenedor.innerHTML = "<p style='color:red;'>Error al cargar los movimientos.</p>";
+        }
+    }
+
+    async function cargarHistorialGeneral() {
+        let contenedor = document.getElementById("contenedorHistorialGeneral");
+        contenedor.innerHTML = "Cargando historial completo...";
+        try {
+            let respuesta = await fetch(URL_API + "?action=getMovimientos");
+            let filas = await respuesta.json();
+            let html = "";
+
+            for (let i = 1; i < filas.length; i++) {
+                let f = filas[i];
+                let nroExp = f.length > 1 ? String(f[1]) : "";
+                let localidad = f.length > 3 ? String(f[3]) : "";
+                let receptor = f.length > 4 ? String(f[4]) : "";
+                let caratula = f.length > 5 ? String(f[5]) : "";
+                let fechaCreacion = formatearFecha(f.length > 6 ? String(f[6]) : "");
+                let emisor = f.length > 8 ? String(f[8]) : "";
+                let estado = f.length > 9 ? String(f[9]) : "";
+
+                html += `
+                    <div class="card-busqueda">
+                        <div class="fila-ficha">
+                            <span><b>Nro:</b> ${nroExp}</span>
+                            <span><b>Emisor:</b> ${emisor || "-"}</span>
+                        </div>
+                        <div style="margin: 4px 0;"><b>Carátula:</b> ${caratula} (${localidad})</div>
+                        <div class="fila-ficha">
+                            <span><b>Receptor Actual:</b> ${receptor}</span>
+                            <span><b>Estado:</b> ${estado}</span>
+                        </div>
+                    </div>
+                `;
+            }
+            contenedor.innerHTML = html || "<p>No hay movimientos registrados.</p>";
+        } catch (e) {
+            contenedor.innerHTML = "<p style='color:red;'>Error al cargar el historial.</p>";
         }
     }
 
@@ -484,6 +567,7 @@
 
         for (let i = 1; i < cacheMovimientos.length; i++) {
             let f = cacheMovimientos[i];
+            let id = f[0];
             let nroExp = f.length > 1 ? String(f[1]) : "";
             let localidad = f.length > 3 ? String(f[3]) : "";
             let receptor = f.length > 4 ? String(f[4]) : "";
@@ -506,6 +590,17 @@
             let badgeEstado = estado.toLowerCase() === "recibido" ? `Recibido ✅ (${fechaRecepcion})` : "No recibido ⏳";
             let iconoInspeccion = (inspeccion.toLowerCase() === "sí" || inspeccion === "True" || inspeccion === "1") ? "Sí ⚠️" : "No ❌";
 
+            // Botones de modificación/eliminación directos si es el emisor actual
+            let botonesAccionEmisor = "";
+            if (emisorActualGlobal && emisorActualGlobal.toLowerCase() === usuarioActual.toLowerCase()) {
+                botonesAccionEmisor = `
+                    <div style="margin-top: 8px; border-top: 1px dashed #ccc; padding-top: 6px; display: flex; gap: 8px;">
+                        <button onclick='prepararEdicionEmisor(${JSON.stringify(f)})' class="btn-warning" style="padding: 6px; font-size: 0.8rem; margin:0;">✏️ Modificar</button>
+                        <button onclick='eliminarExpediente("${id}")' class="btn-danger" style="padding: 6px; font-size: 0.8rem; margin:0;">🗑️ Eliminar</button>
+                    </div>
+                `;
+            }
+
             html += `
                 <div class="card-busqueda">
                     <div class="fila-ficha">
@@ -519,13 +614,75 @@
                     </div>
                     <div class="fila-ficha" style="margin-top: 4px; border-top: 1px solid #eee; padding-top: 4px;">
                         <span><b>Estado:</b> ${badgeEstado}</span>
-                        <span><b>Inspección:</b> ${iconoInspeccion}</span>
+                        <span><b>Tiene el expediente (Receptor):</b> <b style="color: #007bff;">${receptor}</b></span>
                     </div>
+                    <div class="fila-ficha" style="margin-top: 2px;">
+                        <span><b>Inspección:</b> ${iconoInspeccion}</span>
+                        <span><b>Emisor:</b> ${emisor || "-"}</span>
+                    </div>
+                    ${botonesAccionEmisor}
                 </div>
             `;
         }
 
         document.getElementById("resultadoBusquedaContainer").innerHTML = `<b>Se encontraron ${contador} registros:</b><br><br>` + (html || "<p>No se encontraron expedientes con esos filtros.</p>");
+    }
+
+    function prepararEdicionEmisor(f) {
+        document.getElementById("seccionBusqueda").classList.add("oculto");
+        document.getElementById("seccionEmisor").classList.remove("oculto");
+        document.getElementById("tituloPanelEmisor").innerText = "✏️ Modificar Expediente (Emisor)";
+
+        document.getElementById("editandoId").value = f[0];
+        document.getElementById("nroExp").value = f[1] || "";
+        
+        let loc = f[3] || "";
+        let selectLoc = document.getElementById("selectLocalidad");
+        let encontrada = false;
+        for (let opt of selectLoc.options) {
+            if (opt.value === loc) {
+                encontrada = true;
+                break;
+            }
+        }
+        if (encontrada) {
+            selectLoc.value = loc;
+            document.getElementById("otraLocalidadInput").classList.add("oculto");
+        } else {
+            selectLoc.value = "OTRA";
+            let inpOtra = document.getElementById("otraLocalidadInput");
+            inpOtra.classList.remove("oculto");
+            inpOtra.value = loc;
+        }
+
+        document.getElementById("agenteReceptorAsignado").value = f[4] || "Maxi";
+        document.getElementById("caratula").value = f[5] || "";
+        document.getElementById("fechaCreacionExp").value = f[6] ? f[6].split('T')[0] : "";
+        document.getElementById("fechaEntregaExp").value = f[7] ? f[7].split('T')[0] : "";
+
+        document.getElementById("btnGuardarEmisor").innerText = "💾 Actualizar Expediente";
+        document.getElementById("btnCancelarEdicion").classList.remove("oculto");
+    }
+
+    function cancelarEdicionEmisor() {
+        document.getElementById("editandoId").value = "";
+        document.getElementById("tituloPanelEmisor").innerText = "📤 Panel de Agente Emisor";
+        document.getElementById("nroExp").value = "";
+        document.getElementById("caratula").value = "";
+        document.getElementById("selectLocalidad").value = "";
+        document.getElementById("otraLocalidadInput").classList.add("oculto");
+        establecerFechasPorDefecto();
+        document.getElementById("btnGuardarEmisor").innerText = "💾 Guardar y Enviar Expediente";
+        document.getElementById("btnCancelarEdicion").classList.add("oculto");
+        document.getElementById("mensajeEmisor").innerText = "";
+    }
+
+    async function eliminarExpediente(idExp) {
+        if (!confirm("¿Estás seguro de eliminar este expediente por completo?")) return;
+        await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "eliminar", id: idExp }) });
+        alert("Expediente eliminado con éxito.");
+        await precargarMovimientos();
+        ejecutarBusqueda();
     }
 
     function exportarDatos(tipo) {
@@ -588,6 +745,7 @@
         document.getElementById("seccionEmisor").classList.add("oculto");
         document.getElementById("seccionReceptor").classList.add("oculto");
         document.getElementById("seccionBusqueda").classList.add("oculto");
+        document.getElementById("seccionHistorial").classList.add("oculto");
         document.getElementById("seccionRol").classList.remove("oculto");
         await calcularIndicadoresDashboard();
     }
@@ -602,6 +760,7 @@
     }
 
     async function guardarExpediente() {
+        const idEditando = document.getElementById("editandoId").value;
         const nro = document.getElementById("nroExp").value;
         const loc = obtenerLocalidadSeleccionada();
         const receptor = document.getElementById("agenteReceptorAsignado").value;
@@ -613,17 +772,24 @@
         if(!nro) { msg.style.color = "red"; msg.innerText = "⚠️ El número de expediente es obligatorio."; return; }
         if(!loc) { msg.style.color = "red"; msg.innerText = "⚠️ Debe seleccionar o ingresar una localidad."; return; }
 
-        let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "No", ""];
+        msg.style.color = "#333"; 
 
-        msg.style.color = "#333"; msg.innerText = "Guardando...";
-        await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "append", valores: nuevaFila }) });
-        
-        msg.style.color = "green"; msg.innerText = "✅ ¡Expediente guardado con éxito!";
-        document.getElementById("nroExp").value = "";
-        document.getElementById("caratula").value = "";
-        document.getElementById("selectLocalidad").value = "";
-        document.getElementById("otraLocalidadInput").classList.add("oculto");
-        establecerFechasPorDefecto();
+        if (idEditando) {
+            msg.innerText = "Actualizando...";
+            await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "editar", id: idEditando, nro: nro, localidad: loc, receptor: receptor, caratula: caratula, fechaCreacion: fechaCreacion, fechaEntrega: fechaEntrega }) });
+            msg.style.color = "green"; msg.innerText = "✅ ¡Expediente actualizado con éxito!";
+            setTimeout(() => { abrirModuloBusqueda(); }, 1000);
+        } else {
+            msg.innerText = "Guardando...";
+            let nuevaFila = [Math.floor(Math.random() * 100000), nro, "General", loc, receptor, caratula, fechaCreacion, fechaEntrega, usuarioActual, "sin recibir", "No", ""];
+            await fetch(URL_API, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ hoja: "movimientos", action: "append", valores: nuevaFila }) });
+            msg.style.color = "green"; msg.innerText = "✅ ¡Expediente guardado con éxito!";
+            document.getElementById("nroExp").value = "";
+            document.getElementById("caratula").value = "";
+            document.getElementById("selectLocalidad").value = "";
+            document.getElementById("otraLocalidadInput").classList.add("oculto");
+            establecerFechasPorDefecto();
+        }
     }
 
     async function cargarExpedientesReceptor() {
